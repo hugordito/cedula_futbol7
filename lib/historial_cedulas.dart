@@ -1,8 +1,20 @@
 
 import 'dart:convert';
+import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:material_ui/material_ui.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/rendering.dart';
+import 'cedula_tactil.dart';
+
+// =============================================
+// HISTORIAL DE CEDULAS
+// =============================================
 
 class HistorialCedulas extends StatefulWidget {
   const HistorialCedulas({super.key});
@@ -15,38 +27,46 @@ class HistorialCedulas extends StatefulWidget {
 class _HistorialCedulasState
     extends State<HistorialCedulas> {
   List<Map<String, dynamic>> cedulas = [];
+
   bool cargando = true;
   String? error;
 
   @override
   void initState() {
     super.initState();
-    cargar();
+    cargarCedulas();
   }
 
-  Future<void> cargar() async {
+  Future<void> cargarCedulas() async {
+    if (!mounted) return;
+
     setState(() {
       cargando = true;
       error = null;
     });
 
     try {
-      final prefs = SharedPreferencesAsync();
+      final preferencias = SharedPreferencesAsync();
 
-      final texto =
-      await prefs.getString('cedulas_borrador');
+      final texto = await preferencias.getString(
+        'cedulas_borrador',
+      );
 
-      final lista = (jsonDecode(texto ?? '[]') as List)
+      final datos = jsonDecode(texto ?? '[]') as List;
+
+      final lista = datos
           .map(
-            (e) => Map<String, dynamic>.from(e as Map),
+            (item) =>
+        Map<String, dynamic>.from(item as Map),
       )
           .toList();
 
       lista.sort(
-            (a, b) =>
-            (b['creadaEn'] ?? '').toString().compareTo(
-              (a['creadaEn'] ?? '').toString(),
-            ),
+            (a, b) => (b['creadaEn'] ?? '')
+            .toString()
+            .compareTo(
+          (a['creadaEn'] ?? '').toString(),
+        ),
       );
 
       if (!mounted) return;
@@ -60,74 +80,8 @@ class _HistorialCedulasState
 
       setState(() {
         cargando = false;
-        error = 'Error al leer las cédulas: $e';
+        error = 'Error al cargar el historial: $e';
       });
-    }
-  }
-
-  Future<void> eliminar(
-      Map<String, dynamic> cedula,
-      ) async {
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar borrador'),
-        content: const Text(
-          'Esta acción eliminará la cédula guardada. '
-              'No se puede deshacer.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () =>
-                Navigator.pop(context, false),
-            child: const Text('CANCELAR'),
-          ),
-          TextButton(
-            onPressed: () =>
-                Navigator.pop(context, true),
-            child: const Text('ELIMINAR'),
-          ),
-        ],
-      ),
-    );
-
-    if (!mounted || confirmar != true) return;
-
-    try {
-      final prefs = SharedPreferencesAsync();
-
-      final texto =
-      await prefs.getString('cedulas_borrador');
-
-      final lista = (jsonDecode(texto ?? '[]') as List)
-          .map(
-            (e) => Map<String, dynamic>.from(e as Map),
-      )
-          .where(
-            (e) =>
-        e['id'].toString() !=
-            cedula['id'].toString(),
-      )
-          .toList();
-
-      await prefs.setString(
-        'cedulas_borrador',
-        jsonEncode(lista),
-      );
-
-      if (!mounted) return;
-
-      await cargar();
-    } catch (e) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'No se pudo eliminar: $e',
-          ),
-        ),
-      );
     }
   }
 
@@ -138,19 +92,118 @@ class _HistorialCedulasState
     final equipo = cedula[clave];
 
     if (equipo is Map) {
-      return (equipo['nombre'] ?? 'Sin equipo')
+      return (equipo['nombre'] ?? 'SIN EQUIPO')
           .toString();
     }
 
-    return 'Sin equipo';
+    return 'SIN EQUIPO';
   }
 
-  Widget tarjeta(Map<String, dynamic> cedula) {
-    final local =
-    nombreEquipo(cedula, 'equipoLocal');
+  Future<void> eliminarCedula(
+      Map<String, dynamic> cedula,
+      ) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (dialogo) => AlertDialog(
+        title: const Text('ELIMINAR CÉDULA'),
+        content: const Text(
+          'Se eliminará esta cédula junto con '
+              'sus datos y firmas. '
+              'Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogo, false);
+            },
+            child: const Text('CANCELAR'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogo, true);
+            },
+            child: const Text(
+              'ELIMINAR',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
 
-    final visitante =
-    nombreEquipo(cedula, 'equipoVisitante');
+    if (!mounted || confirmar != true) return;
+
+    try {
+      final preferencias = SharedPreferencesAsync();
+
+      final texto = await preferencias.getString(
+        'cedulas_borrador',
+      );
+
+      final lista = (jsonDecode(texto ?? '[]') as List)
+          .map(
+            (item) =>
+        Map<String, dynamic>.from(item as Map),
+      )
+          .toList();
+
+      lista.removeWhere(
+            (item) =>
+        item['id'].toString() ==
+            cedula['id'].toString(),
+      );
+
+      await preferencias.setString(
+        'cedulas_borrador',
+        jsonEncode(lista),
+      );
+
+      if (!mounted) return;
+
+      await cargarCedulas();
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'No se pudo eliminar la cédula: $e',
+          ),
+        ),
+      );
+    }
+  }
+
+  void abrirCedula(
+      Map<String, dynamic> cedula,
+      ) {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => DetalleCedula(
+          cedula: Map<String, dynamic>.from(cedula),
+        ),
+      ),
+    );
+  }
+
+  Widget tarjetaCedula(
+      Map<String, dynamic> cedula,
+      ) {
+    final local = nombreEquipo(
+      cedula,
+      'equipoLocal',
+    );
+
+    final visitante = nombreEquipo(
+      cedula,
+      'equipoVisitante',
+    );
+
+    final mapaFirmas = cedula['firmas'];
+
+    final totalFirmas =
+    mapaFirmas is Map ? mapaFirmas.length : 0;
 
     return Card(
       child: Padding(
@@ -160,30 +213,42 @@ class _HistorialCedulasState
           CrossAxisAlignment.stretch,
           children: [
             Text(
-              '$local  vs  $visitante',
+              '$local VS $visitante',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
+                fontSize: 16,
               ),
             ),
 
-            const SizedBox(height: 5),
+            const SizedBox(height: 8),
 
             Text(
               'Torneo: ${cedula['torneo'] ?? ''}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
 
             Text(
               'Fecha: ${cedula['fecha'] ?? ''}',
             ),
 
+            const SizedBox(height: 6),
+
             Text(
-              'Marcador: '
+              'MARCADOR: '
                   '${cedula['golesLocal'] ?? 0} - '
                   '${cedula['golesVisitante'] ?? 0}',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            Text(
+              'Firmas: $totalFirmas de 6',
+              style: const TextStyle(
+                fontSize: 12,
               ),
             ),
 
@@ -193,27 +258,23 @@ class _HistorialCedulasState
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push<void>(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (context) =>
-                              DetalleCedula(
-                                cedula: cedula,
-                              ),
-                        ),
-                      );
-                    },
+                    onPressed: () => abrirCedula(cedula),
                     icon: const Icon(
                       Icons.visibility,
                     ),
-                    label: const Text('VER CÉDULA'),
+                    label: const Text(
+                      'VER CÉDULA',
+                    ),
                   ),
                 ),
 
+                const SizedBox(width: 6),
+
                 IconButton(
-                  onPressed: () => eliminar(cedula),
-                  tooltip: 'Eliminar borrador',
+                  tooltip: 'Eliminar cédula',
+                  onPressed: () {
+                    eliminarCedula(cedula);
+                  },
                   icon: const Icon(
                     Icons.delete_outline,
                     color: Colors.red,
@@ -231,15 +292,13 @@ class _HistorialCedulasState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'HISTORIAL DE CÉDULAS',
-        ),
+        title: const Text('HISTORIAL DE CÉDULAS'),
         backgroundColor: Colors.blueGrey,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            onPressed: cargar,
             tooltip: 'Actualizar historial',
+            onPressed: cargarCedulas,
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -258,9 +317,9 @@ class _HistorialCedulasState
         child: Padding(
           padding: EdgeInsets.all(20),
           child: Text(
-            'No hay borradores guardados todavía.\n'
-                'Crea una cédula y toca '
-                'GUARDAR BORRADOR.',
+            'No hay cédulas guardadas.\n'
+                'Crea una cédula y guarda '
+                'el borrador.',
             textAlign: TextAlign.center,
           ),
         ),
@@ -281,16 +340,19 @@ class _HistorialCedulasState
               child: GridView.builder(
                 padding:
                 const EdgeInsets.all(16),
+                itemCount: cedulas.length,
                 gridDelegate:
                 SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: columnas,
-                  mainAxisExtent: 205,
+                  mainAxisExtent: 235,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
                 ),
-                itemCount: cedulas.length,
-                itemBuilder: (context, i) =>
-                    tarjeta(cedulas[i]),
+                itemBuilder: (context, i) {
+                  return tarjetaCedula(
+                    cedulas[i],
+                  );
+                },
               ),
             ),
           );
@@ -300,11 +362,11 @@ class _HistorialCedulasState
   }
 }
 
-// ==========================================
-// DETALLE DE UNA CÉDULA GUARDADA
-// ==========================================
+// =============================================
+// DETALLE: MISMA CEDULA ORIGINAL
+// =============================================
 
-class DetalleCedula extends StatelessWidget {
+class DetalleCedula extends StatefulWidget {
   final Map<String, dynamic> cedula;
 
   const DetalleCedula({
@@ -312,365 +374,371 @@ class DetalleCedula extends StatelessWidget {
     required this.cedula,
   });
 
-  Map<String, dynamic> equipo(String clave) {
-    final dato = cedula[clave];
+  @override
+  State<DetalleCedula> createState() =>
+      _DetalleCedulaState();
+}
 
-    if (dato is Map) {
-      return Map<String, dynamic>.from(dato);
-    }
+class _DetalleCedulaState extends State<DetalleCedula> {
+  final GlobalKey capturaKey = GlobalKey();
 
-    return {};
+  late final Map<String, TextEditingController> campos;
+
+  late final Map<String, dynamic>? equipoLocal;
+  late final Map<String, dynamic>? equipoVisitante;
+
+  late final List<Map<String, dynamic>> eventos;
+  late final List<Map<String, dynamic>> shootouts;
+  late final Map<String, String> firmas;
+
+  bool exportandoPdf = false;
+
+  static const List<String> clavesCampos = [
+    'ciudad',
+    'torneo',
+    'cancha',
+    'fecha',
+    'hora',
+    'jornada',
+    'categoria',
+    'rama',
+    'arbitro',
+    'observaciones',
+    'dtLocal',
+    'atLocal',
+    'dtVisitante',
+    'atVisitante',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+
+    final guardada = widget.cedula;
+
+    // Creamos los mismos controladores que
+    // utiliza la cédula durante su edición.
+    campos = {
+      for (final clave in clavesCampos)
+        clave: TextEditingController(
+          text: (guardada[clave] ?? '').toString(),
+        ),
+    };
+
+    equipoLocal = convertirEquipo(
+      guardada['equipoLocal'],
+    );
+
+    equipoVisitante = convertirEquipo(
+      guardada['equipoVisitante'],
+    );
+
+    eventos = convertirLista(
+      guardada['eventos'],
+    );
+
+    shootouts = convertirLista(
+      guardada['shootouts'],
+    );
+
+    firmas = convertirFirmas(
+      guardada['firmas'],
+    );
   }
 
-  List<Map<String, dynamic>> lista(String clave) {
-    final datos = cedula[clave];
+  Map<String, dynamic>? convertirEquipo(
+      dynamic valor,
+      ) {
+    if (valor is Map) {
+      return Map<String, dynamic>.from(valor);
+    }
 
-    if (datos is! List) return [];
+    return null;
+  }
 
-    return datos
+  List<Map<String, dynamic>> convertirLista(
+      dynamic valor,
+      ) {
+    if (valor is! List) return [];
+
+    return valor
         .whereType<Map>()
         .map(
-          (e) => Map<String, dynamic>.from(e),
+          (item) =>
+      Map<String, dynamic>.from(item),
     )
         .toList();
   }
 
-  int cantidad(
-      String tipo,
-      String lado,
-      int numero,
+  Map<String, String> convertirFirmas(
+      dynamic valor,
       ) {
-    return lista('eventos').where(
-          (e) =>
-      e['tipo'] == tipo &&
-          e['lado'] == lado &&
-          int.tryParse(
-            '${e['numero']}',
-          ) ==
-              numero,
-    ).length;
-  }
+    if (valor is! Map) return {};
 
-  Widget titulo(String texto) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 12,
-      ),
-      child: Text(
-        texto,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.bold,
-        ),
+    return valor.map<String, String>(
+          (clave, firma) => MapEntry(
+        clave.toString(),
+        firma.toString(),
       ),
     );
   }
 
-  Widget celda(
-      String valor, {
-        bool negrita = false,
-      }) {
-    return Padding(
-      padding: const EdgeInsets.all(4),
-      child: Text(
-        valor,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: negrita
-              ? FontWeight.bold
-              : FontWeight.normal,
-        ),
+  String nombreEquipo(
+      Map<String, dynamic>? equipo,
+      ) {
+    return (equipo?['nombre'] ?? 'SIN EQUIPO')
+        .toString();
+  }
+
+  void mostrarError(String mensaje) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensaje),
       ),
     );
   }
 
-  Widget tablaEquipo(
-      String lado,
-      String clave,
-      ) {
-    final datosEquipo = equipo(clave);
+  // =============================================
+  // CAPTURA DE LA HOJA Y GENERACION DEL PDF
+  // =============================================
 
-    final jugadores =
-        (datosEquipo['jugadores'] as List?) ?? [];
+  Future<void> guardarPdf() async {
+    if (exportandoPdf) return;
 
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          width: double.infinity,
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: Colors.black54,
-            ),
-          ),
-          child: Text(
-            '${lado.toUpperCase()}: '
-                '${datosEquipo['nombre'] ?? 'Sin seleccionar'}',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
-          ),
+    setState(() {
+      exportandoPdf = true;
+    });
+
+    try {
+      // Espera a que la hoja y las firmas
+      // terminen de dibujarse.
+      await WidgetsBinding.instance.endOfFrame;
+
+      final objeto = capturaKey.currentContext
+          ?.findRenderObject();
+
+      if (objeto is! RenderRepaintBoundary) {
+        throw Exception(
+          'No se encontró la hoja para exportar.',
+        );
+      }
+
+      if (objeto.size.width <= 0 ||
+          objeto.size.height <= 0) {
+        throw Exception(
+          'La hoja todavía no tiene tamaño válido.',
+        );
+      }
+
+      // Limitamos el tamaño de la captura para
+      // evitar imágenes excesivamente grandes
+      // en teléfonos y tablets.
+      final escala = math.min(
+        2.0,
+        math.min(
+          3000.0 / objeto.size.width,
+          6000.0 / objeto.size.height,
         ),
+      );
 
-        Table(
-          border: TableBorder.all(
-            color: Colors.black54,
-          ),
-          columnWidths: const {
-            0: FixedColumnWidth(26),
-            1: FixedColumnWidth(30),
-            2: FlexColumnWidth(5),
-            3: FixedColumnWidth(25),
-            4: FixedColumnWidth(25),
-            5: FixedColumnWidth(25),
-            6: FixedColumnWidth(25),
-          },
-          children: [
-            TableRow(
-              children: [
-                celda('Nº', negrita: true),
-                celda('#', negrita: true),
-                celda('Jugador', negrita: true),
-                celda('G', negrita: true),
-                celda('A', negrita: true),
-                celda('R', negrita: true),
-                celda('F', negrita: true),
-              ],
-            ),
+      final ui.Image imagen = await objeto.toImage(
+        pixelRatio: escala,
+      );
 
-            for (int i = 0; i < 20; i++)
-              TableRow(
-                children: [
-                  celda('${i + 1}'),
+      final datos = await imagen.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
 
-                  celda(
-                    i < jugadores.length
-                        ? '${(jugadores[i] as Map)['numero']}'
-                        : '',
-                  ),
+      imagen.dispose();
 
-                  celda(
-                    i < jugadores.length
-                        ? '${(jugadores[i] as Map)['nombre']}'
-                        : '',
-                  ),
+      if (datos == null) {
+        throw Exception(
+          'No fue posible capturar la cédula.',
+        );
+      }
 
-                  celda(
-                    i < jugadores.length
-                        ? '${cantidad(
-                      'gol',
-                      lado,
-                      int.tryParse(
-                        '${(jugadores[i] as Map)['numero']}',
-                      ) ??
-                          -1,
-                    )}'
-                        : '',
-                  ),
+      final Uint8List bytesImagen =
+      datos.buffer.asUint8List();
 
-                  celda(
-                    i < jugadores.length
-                        ? '${cantidad(
-                      'amarilla',
-                      lado,
-                      int.tryParse(
-                        '${(jugadores[i] as Map)['numero']}',
-                      ) ??
-                          -1,
-                    )}'
-                        : '',
-                  ),
+      // Usamos la captura original.
+      // No reconstruimos tablas, texto ni firmas.
+      final documento = pw.Document();
 
-                  celda(
-                    i < jugadores.length
-                        ? '${cantidad(
-                      'roja',
-                      lado,
-                      int.tryParse(
-                        '${(jugadores[i] as Map)['numero']}',
-                      ) ??
-                          -1,
-                    )}'
-                        : '',
-                  ),
+      final imagenPdf = pw.MemoryImage(
+        bytesImagen,
+      );
 
-                  celda(
-                    i < jugadores.length
-                        ? '${cantidad(
-                      'falta',
-                      lado,
-                      int.tryParse(
-                        '${(jugadores[i] as Map)['numero']}',
-                      ) ??
-                          -1,
-                    )}'
-                        : '',
-                  ),
-                ],
+      documento.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: pw.EdgeInsets.zero,
+          build: (context) {
+            return pw.Center(
+              child: pw.Image(
+                imagenPdf,
+                width: PdfPageFormat.a4.width,
+                height: PdfPageFormat.a4.height,
+                fit: pw.BoxFit.contain,
               ),
-          ],
+            );
+          },
         ),
-      ],
+      );
+
+      final pdfBytes = await documento.save();
+
+      final local = nombreEquipo(equipoLocal);
+      final visitante = nombreEquipo(equipoVisitante);
+
+      final nombreArchivo =
+      'cedula_${local}_vs_${visitante}.pdf'
+          .replaceAll(
+        RegExp(r'[^a-zA-Z0-9._-]'),
+        '_',
+      );
+
+      if (!mounted) return;
+
+      await Printing.sharePdf(
+        bytes: pdfBytes,
+        filename: nombreArchivo,
+      );
+    } catch (e) {
+      mostrarError(
+        'No se pudo generar el PDF: $e',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          exportandoPdf = false;
+        });
+      }
+    }
+  }
+
+
+  // CEDULA ORIGINAL EN SOLO LECTURA
+
+
+  Widget hojaOriginal() {
+    return RepaintBoundary(
+      key: capturaKey,
+      child: IgnorePointer(
+        ignoring: true,
+        child: SizedBox(
+          width: 870,
+          child: CedulaTactil(
+            campos: campos,
+            equipoLocal: equipoLocal,
+            equipoVisitante: equipoVisitante,
+            eventos: eventos,
+            shootouts: shootouts,
+            firmas: firmas,
+
+            // En el historial nada se edita.
+            onCamposActualizados: () {},
+
+            onEventosActualizados: (nuevos) {},
+
+            onFirmasActualizadas: (nuevas) {},
+
+            onEditarEquipos: () async {},
+
+            onEditarShootouts: () async {},
+          ),
+        ),
+      ),
     );
   }
 
-  Widget listaEventos() {
-    final eventos = lista('eventos');
-    final shootouts = lista('shootouts');
+  @override
+  void dispose() {
+    for (final controlador in campos.values) {
+      controlador.dispose();
+    }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        titulo('GOLES, FALTAS Y TARJETAS'),
-
-        if (eventos.isEmpty)
-          const Text(
-            'Sin acontecimientos registrados.',
-          ),
-
-        for (final e in eventos)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: 3,
-            ),
-            child: Text(
-              '${e['lado'] == 'local' ? 'LOCAL' : 'VISITANTE'} · '
-                  '${(e['tipo'] ?? '').toString().toUpperCase()} · '
-                  '#${e['numero']} ${e['jugador']} · '
-                  '${e['periodo']} · Min ${e['minuto']}'
-                  '${(e['causa'] ?? '').toString().isEmpty ? '' : ' · ${e['causa']}'}',
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
-
-        titulo('SHOOT OUTS'),
-
-        if (shootouts.isEmpty)
-          const Text(
-            'Sin intentos registrados.',
-          ),
-
-        for (final s in shootouts)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: 3,
-            ),
-            child: Text(
-              '${s['lado'] == 'local' ? 'LOCAL' : 'VISITANTE'} · '
-                  '#${s['numero']} ${s['jugador']} · '
-                  '${s['resultado'] == 'gol' ? 'GOL' : 'FALLÓ'}',
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
-      ],
-    );
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('BORRADOR GUARDADO'),
+        title: const Text('CÉDULA GUARDADA'),
         backgroundColor: Colors.blueGrey,
         foregroundColor: Colors.white,
       ),
 
-      body: LayoutBuilder(
-        builder: (context, espacio) {
-          final ancho = espacio.maxWidth < 730
-              ? 730.0
-              : espacio.maxWidth
-              .clamp(730.0, 960.0)
-              .toDouble();
-
-          return SingleChildScrollView(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: ancho,
-                child: Padding(
-                  padding: const EdgeInsets.all(22),
-                  child: Column(
-                    crossAxisAlignment:
-                    CrossAxisAlignment.stretch,
-                    children: [
-                      const Text(
-                        'ACTA DE JUEGO FÚTBOL 7',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 21,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      Text(
-                        'Torneo: ${cedula['torneo'] ?? ''} · '
-                            'Fecha: ${cedula['fecha'] ?? ''} · '
-                            'Cancha: ${cedula['cancha'] ?? ''}',
-                        textAlign: TextAlign.center,
-                      ),
-
-                      titulo(
-                        'MARCADOR: '
-                            '${cedula['golesLocal'] ?? 0} - '
-                            '${cedula['golesVisitante'] ?? 0}',
-                      ),
-
-                      Row(
-                        crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: tablaEquipo(
-                              'local',
-                              'equipoLocal',
-                            ),
-                          ),
-
-                          const SizedBox(width: 12),
-
-                          Expanded(
-                            child: tablaEquipo(
-                              'visitante',
-                              'equipoVisitante',
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      listaEventos(),
-
-                      titulo('OBSERVACIONES'),
-
-                      Text(
-                        '${cedula['observaciones'] ?? ''}',
-                      ),
-
-                      const SizedBox(height: 22),
-
-                      const Text(
-                        'Vista de borrador. '
-                            'Aún no es un PDF ni '
-                            'una cédula final.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed:
+                exportandoPdf ? null : guardarPdf,
+                icon: exportandoPdf
+                    ? const SizedBox(
+                  width: 19,
+                  height: 19,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
                   ),
+                )
+                    : const Icon(
+                  Icons.picture_as_pdf,
+                ),
+                label: Text(
+                  exportandoPdf
+                      ? 'GENERANDO PDF...'
+                      : 'GUARDAR PDF',
                 ),
               ),
             ),
-          );
-        },
+          ),
+
+          const Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: 12,
+            ),
+            child: Text(
+              'Vista de la cédula original. '
+                  'Desliza para recorrer la hoja.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12),
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, espacio) {
+                final ancho = math.max(
+                  espacio.maxWidth,
+                  870.0,
+                );
+
+                return SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: ancho,
+                      child: Center(
+                        child: hojaOriginal(),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
