@@ -5,9 +5,14 @@ import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'cargar_equipo.dart';
-import 'registro_eventos.dart';
 import 'registro_shootouts.dart';
 import 'cedula_tactil.dart';
+import 'arena_estilo.dart';
+
+// ==========================================
+// NUEVA CÉDULA - ARENA MOUSTACHE
+// SOLO MODO TÁCTIL
+// ==========================================
 
 class NuevaCedula extends StatefulWidget {
   const NuevaCedula({super.key});
@@ -43,12 +48,10 @@ class _NuevaCedulaState extends State<NuevaCedula> {
   List<Map<String, dynamic>> faltasBloques = [];
   List<Map<String, dynamic>> marcasVisuales = [];
 
-  // Cada entrada contiene una firma PNG en Base64.
   Map<String, String> firmas = {};
 
   bool cargando = true;
   bool guardando = false;
-  bool vistaHoja = true;
 
   String? error;
 
@@ -62,16 +65,24 @@ class _NuevaCedulaState extends State<NuevaCedula> {
     cargarEquipos();
   }
 
+  // ==========================================
+  // CONTADORES
+  // ==========================================
+
   int contar(String lado, String tipo) {
     final eventosContados = eventos.where(
-      (item) => item['lado'] == lado && item['tipo'] == tipo,
+          (item) =>
+      item['lado'] == lado &&
+          item['tipo'] == tipo,
     ).length;
 
-    if (tipo != 'falta') return eventosContados;
+    if (tipo != 'falta') {
+      return eventosContados;
+    }
 
     return eventosContados +
         faltasBloques.where(
-          (item) => item['lado'] == lado,
+              (item) => item['lado'] == lado,
         ).length;
   }
 
@@ -91,9 +102,9 @@ class _NuevaCedulaState extends State<NuevaCedula> {
     );
   }
 
-  // =========================================
+  // ==========================================
   // CARGAR EQUIPOS
-  // =========================================
+  // ==========================================
 
   Future<void> cargarEquipos() async {
     setState(() {
@@ -138,7 +149,8 @@ class _NuevaCedulaState extends State<NuevaCedula> {
             local = equipo;
           }
 
-          if (equipo['id'].toString() == idVisitante) {
+          if (equipo['id'].toString() ==
+              idVisitante) {
             visitante = equipo;
           }
         }
@@ -160,8 +172,7 @@ class _NuevaCedulaState extends State<NuevaCedula> {
           faltasBloques = [];
           marcasVisuales = [];
 
-          // Evita conservar firmas de otro partido
-          // cuando se cambia la selección de equipos.
+          // Evitar conservar firmas de otro partido.
           firmas = {};
         }
 
@@ -177,6 +188,10 @@ class _NuevaCedulaState extends State<NuevaCedula> {
     }
   }
 
+  // ==========================================
+  // SELECCIONAR EQUIPOS
+  // ==========================================
+
   Future<void> seleccionarEquipos() async {
     await Navigator.push<void>(
       context,
@@ -190,39 +205,9 @@ class _NuevaCedulaState extends State<NuevaCedula> {
     await cargarEquipos();
   }
 
-  // =========================================
-  // REGISTRAR ACONTECIMIENTOS
-  // =========================================
-
-  Future<void> abrirEventos() async {
-    if (equipoLocal == null ||
-        equipoVisitante == null) {
-      mensaje('Primero selecciona los equipos');
-      return;
-    }
-
-    final resultado =
-    await Navigator.push<List<Map<String, dynamic>>>(
-      context,
-      MaterialPageRoute<List<Map<String, dynamic>>>(
-        builder: (context) => RegistroEventos(
-          equipoLocal: equipoLocal!,
-          equipoVisitante: equipoVisitante!,
-          eventosIniciales: eventos,
-        ),
-      ),
-    );
-
-    if (!mounted || resultado == null) return;
-
-    setState(() {
-      eventos = resultado;
-    });
-  }
-
-  // =========================================
+  // ==========================================
   // REGISTRAR SHOOT OUTS
-  // =========================================
+  // ==========================================
 
   Future<void> abrirShootouts() async {
     if (equipoLocal == null ||
@@ -250,9 +235,9 @@ class _NuevaCedulaState extends State<NuevaCedula> {
     });
   }
 
-  // =========================================
-  // GUARDAR BORRADOR CON FIRMAS
-  // =========================================
+  // ==========================================
+  // GUARDAR CÉDULA
+  // ==========================================
 
   Future<void> guardarBorrador() async {
     if (guardando) return;
@@ -292,9 +277,7 @@ class _NuevaCedulaState extends State<NuevaCedula> {
 
       final nuevaCedula = <String, dynamic>{
         'id': ahora.microsecondsSinceEpoch.toString(),
-
         'estado': 'borrador',
-
         'creadaEn': ahora.toIso8601String(),
 
         for (final entrada in campos.entries)
@@ -308,15 +291,16 @@ class _NuevaCedulaState extends State<NuevaCedula> {
         'faltasBloques': faltasBloques,
         'marcasVisuales': marcasVisuales,
 
-        // Las seis firmas guardadas en la hoja.
         'firmas': Map<String, String>.from(firmas),
 
         'golesLocal': contar('local', 'gol'),
         'golesVisitante': contar('visitante', 'gol'),
 
         'faltasLocal': contar('local', 'falta'),
-        'faltasVisitante':
-        contar('visitante', 'falta'),
+        'faltasVisitante': contar(
+          'visitante',
+          'falta',
+        ),
 
         'shootoutsGolLocal':
         shootoutsAcertados('local'),
@@ -346,284 +330,9 @@ class _NuevaCedulaState extends State<NuevaCedula> {
     }
   }
 
-  // =========================================
-  // CAMPOS Y FORMULARIO
-  // =========================================
-
-  Widget campo(
-      String etiqueta,
-      String clave, {
-        int lineas = 1,
-      }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextField(
-        controller: campos[clave],
-        maxLines: lineas,
-        decoration: InputDecoration(
-          labelText: etiqueta,
-          border: const OutlineInputBorder(),
-        ),
-      ),
-    );
-  }
-
-  Widget titulo(String texto) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 14,
-      ),
-      child: Text(
-        texto,
-        style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  Widget formularioAdaptable(List<Widget> lista) {
-    return LayoutBuilder(
-      builder: (context, espacio) {
-        if (espacio.maxWidth < 700) {
-          return Column(
-            children: lista,
-          );
-        }
-
-        final ancho =
-            (espacio.maxWidth - 14) / 2;
-
-        return Wrap(
-          spacing: 14,
-          children: [
-            for (final elemento in lista)
-              SizedBox(
-                width: ancho,
-                child: elemento,
-              ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget tarjetaEquipo(
-      String titulo,
-      Map<String, dynamic>? equipo,
-      ) {
-    final plantilla =
-        (equipo?['jugadores'] as List?) ?? [];
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              titulo,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            Text(
-              equipo?['nombre']?.toString() ??
-                  'Sin seleccionar',
-            ),
-
-            Text(
-              '${plantilla.length} de 20 jugadores',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // =========================================
-  // EDITOR DE DATOS TRADICIONAL
-  // =========================================
-
-  Widget editor() {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 950,
-        ),
-        child: ListView(
-          padding: const EdgeInsets.all(18),
-          children: [
-            titulo('DATOS DEL PARTIDO'),
-
-            formularioAdaptable([
-              campo('Ciudad', 'ciudad'),
-              campo('Torneo', 'torneo'),
-              campo('Cancha', 'cancha'),
-              campo('Fecha', 'fecha'),
-              campo('Hora', 'hora'),
-              campo('Jornada', 'jornada'),
-              campo('Rama', 'rama'),
-              campo('Categoría', 'categoria'),
-              campo('Árbitro', 'arbitro'),
-            ]),
-
-            titulo('EQUIPOS PARTICIPANTES'),
-
-            OutlinedButton.icon(
-              onPressed: seleccionarEquipos,
-              icon: const Icon(Icons.folder_open),
-              label: const Text(
-                'SELECCIONAR EQUIPOS',
-              ),
-            ),
-
-            LayoutBuilder(
-              builder: (context, espacio) {
-                if (espacio.maxWidth < 650) {
-                  return Column(
-                    children: [
-                      tarjetaEquipo(
-                        'LOCAL',
-                        equipoLocal,
-                      ),
-                      tarjetaEquipo(
-                        'VISITANTE',
-                        equipoVisitante,
-                      ),
-                    ],
-                  );
-                }
-
-                return Row(
-                  children: [
-                    Expanded(
-                      child: tarjetaEquipo(
-                        'LOCAL',
-                        equipoLocal,
-                      ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    Expanded(
-                      child: tarjetaEquipo(
-                        'VISITANTE',
-                        equipoVisitante,
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-
-            titulo('CUERPO TÉCNICO'),
-
-            formularioAdaptable([
-              campo('D.T. local', 'dtLocal'),
-              campo('A.T. local', 'atLocal'),
-              campo('D.T. visitante', 'dtVisitante'),
-              campo('A.T. visitante', 'atVisitante'),
-            ]),
-
-            titulo('GOLES, FALTAS Y TARJETAS'),
-
-            Text(
-              'Marcador: '
-                  '${contar('local', 'gol')} - '
-                  '${contar('visitante', 'gol')}',
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            Text(
-              'Acontecimientos: ${eventos.length}',
-            ),
-
-            const SizedBox(height: 12),
-
-            OutlinedButton.icon(
-              onPressed: abrirEventos,
-              icon: const Icon(Icons.edit_note),
-              label: const Text(
-                'REGISTRAR ACONTECIMIENTOS',
-              ),
-            ),
-
-            titulo('DEFINICIÓN EN SHOOT OUT'),
-
-            Text(
-              'Local: ${shootoutsAcertados('local')} · '
-                  'Visitante: '
-                  '${shootoutsAcertados('visitante')}',
-            ),
-
-            const SizedBox(height: 12),
-
-            OutlinedButton.icon(
-              onPressed: abrirShootouts,
-              icon: const Icon(Icons.sports_soccer),
-              label: const Text(
-                'REGISTRAR SHOOT OUTS',
-              ),
-            ),
-
-            titulo('FIRMAS'),
-
-            Text(
-              'Firmas capturadas: ${firmas.length} de 6',
-            ),
-
-            const SizedBox(height: 8),
-
-            const Text(
-              'Para firmar, entra en VER CÉDULA '
-                  'y toca el recuadro correspondiente.',
-            ),
-
-            titulo('OBSERVACIONES'),
-
-            campo(
-              'Observaciones del partido',
-              'observaciones',
-              lineas: 5,
-            ),
-
-            const SizedBox(height: 18),
-
-            SizedBox(
-              height: 55,
-              child: ElevatedButton.icon(
-                onPressed:
-                guardando ? null : guardarBorrador,
-                icon: const Icon(Icons.save),
-                label: Text(
-                  guardando
-                      ? 'GUARDANDO...'
-                      : 'GUARDAR BORRADOR',
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 30),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // =========================================
+  // ==========================================
   // LIBERAR CONTROLADORES
-  // =========================================
+  // ==========================================
 
   @override
   void dispose() {
@@ -634,176 +343,252 @@ class _NuevaCedulaState extends State<NuevaCedula> {
     super.dispose();
   }
 
-  // =========================================
-  // PANTALLA PRINCIPAL DE NUEVA CEDULA
-  // =========================================
+  // ==========================================
+  // BOTÓN METÁLICO COMPACTO
+  // ==========================================
+
+  Widget botonMetalico({
+    required String texto,
+    required IconData icono,
+    required VoidCallback? onPressed,
+    Color acento = ArenaColores.dorado,
+    double altura = 43,
+  }) {
+    return SizedBox(
+      height: altura,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: acento,
+              width: 1.3,
+            ),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF50302E),
+                Color(0xFF2D1B1D),
+                Color(0xFF100B0D),
+              ],
+            ),
+          ),
+          child: InkWell(
+            onTap: onPressed,
+            splashColor: acento.withValues(
+              alpha: 0.22,
+            ),
+            child: Opacity(
+              opacity: onPressed == null ? 0.5 : 1,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          icono,
+                          size: 19,
+                          color: acento,
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        Text(
+                          texto,
+                          maxLines: 1,
+                          style: TextStyle(
+                            color: acento,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.8,
+                            shadows: const [
+                              Shadow(
+                                color: Colors.black87,
+                                blurRadius: 3,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // PANTALLA PRINCIPAL - SOLO CÉDULA TÁCTIL
+  // ==========================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('NUEVA CÉDULA'),
-        backgroundColor: Colors.deepOrange,
-        foregroundColor: Colors.white,
+      appBar: const ArenaBarraSuperior(
+        titulo: 'NUEVA CÉDULA',
       ),
 
-      body: cargando
-          ? const Center(
-        child: CircularProgressIndicator(),
-      )
-          : error != null
-          ? Center(
-        child: Text(error!),
-      )
-          : Column(
-        children: [
-          Padding(
-            padding:
-            const EdgeInsets.fromLTRB(
-              12,
-              12,
-              12,
-              6,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        vistaHoja = false;
-                      });
-                    },
-                    icon: const Icon(Icons.edit),
-                    label: const Text(
-                      'EDITAR DATOS',
-                    ),
-                  ),
-                ),
-
-                const SizedBox(width: 10),
-
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        vistaHoja = true;
-                      });
-                    },
-                    icon: const Icon(
-                      Icons.description,
-                    ),
-                    label: const Text(
-                      'VER CÉDULA',
-                    ),
-                  ),
-                ),
-              ],
+      body: ArenaFondo(
+        child: cargando
+            ? const Center(
+          child: CircularProgressIndicator(
+            color: ArenaColores.dorado,
+          ),
+        )
+            : error != null
+            ? Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: ArenaPanel(
+              child: Text(
+                error!,
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
+        )
+            : Column(
+          children: [
+            // ============================
+            // OPCIÓN C: BOTÓN CENTRADO
+            // ============================
 
-          if (vistaHoja)
             Padding(
-              padding:
-              const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 4,
+              padding: const EdgeInsets.fromLTRB(
+                16, 12, 16, 4,
               ),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: guardando
-                      ? null
-                      : guardarBorrador,
-                  style:
-                  ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 260,
                   ),
-                  icon: const Icon(Icons.save),
-                  label: Text(
-                    guardando
-                        ? 'GUARDANDO...'
-                        : 'GUARDAR CÉDULA',
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: botonMetalico(
+                      texto: guardando
+                          ? 'GUARDANDO...'
+                          : 'GUARDAR CÉDULA',
+                      icono: guardando
+                          ? Icons.hourglass_top
+                          : Icons.save,
+                      onPressed: guardando
+                          ? null
+                          : guardarBorrador,
+                    ),
                   ),
                 ),
               ),
             ),
 
-          if (vistaHoja)
+            // ============================
+            // INSTRUCCIÓN BREVE
+            // ============================
+
             const Padding(
               padding: EdgeInsets.symmetric(
                 horizontal: 16,
-                vertical: 4,
+                vertical: 5,
               ),
               child: Text(
                 'Toca las casillas de la hoja '
                     'para introducir datos y firmas.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
+                  color: Colors.white,
                   fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black,
+                      blurRadius: 5,
+                    ),
+                  ],
                 ),
               ),
             ),
 
-          Expanded(
-            child: vistaHoja
-                ? CedulaTactil(
-              campos: campos,
+            // ============================
+            // HOJA TÁCTIL ORIGINAL
+            // ============================
 
-              equipoLocal: equipoLocal,
+            Expanded(
+              child: CedulaTactil(
+                campos: campos,
 
-              equipoVisitante:
-              equipoVisitante,
+                equipoLocal: equipoLocal,
 
-              eventos: eventos,
+                equipoVisitante:
+                equipoVisitante,
 
-              shootouts: shootouts,
-               faltasBloques: faltasBloques,
-               marcasVisuales: marcasVisuales,
+                eventos: eventos,
 
-              firmas: firmas,
+                shootouts: shootouts,
 
-              onFaltasBloquesActualizadas: (nuevas) {
-                 setState(() {
-                   faltasBloques = nuevas;
-                 });
-               },
-               onMarcasVisualesActualizadas: (nuevas) {
-                 setState(() {
-                   marcasVisuales = nuevas;
-                 });
-               },
-               onCamposActualizados: () {
-                setState(() {});
-              },
+                faltasBloques: faltasBloques,
 
-              onEventosActualizados:
-                  (nuevosEventos) {
-                setState(() {
-                  eventos = nuevosEventos;
-                });
-              },
+                marcasVisuales: marcasVisuales,
 
-              onFirmasActualizadas:
-                  (nuevasFirmas) {
-                setState(() {
-                  firmas =
-                  Map<String, String>.from(
-                    nuevasFirmas,
-                  );
-                });
-              },
+                firmas: firmas,
 
-              onEditarEquipos:
-              seleccionarEquipos,
+                onFaltasBloquesActualizadas:
+                    (nuevas) {
+                  setState(() {
+                    faltasBloques = nuevas;
+                  });
+                },
 
-              onEditarShootouts:
-              abrirShootouts,
-            )
-                : editor(),
-          ),
-        ],
+                onMarcasVisualesActualizadas:
+                    (nuevas) {
+                  setState(() {
+                    marcasVisuales = nuevas;
+                  });
+                },
+
+                onCamposActualizados: () {
+                  setState(() {});
+                },
+
+                onEventosActualizados:
+                    (nuevosEventos) {
+                  setState(() {
+                    eventos = nuevosEventos;
+                  });
+                },
+
+                onFirmasActualizadas:
+                    (nuevasFirmas) {
+                  setState(() {
+                    firmas =
+                    Map<String, String>.from(
+                      nuevasFirmas,
+                    );
+                  });
+                },
+
+                onEditarEquipos:
+                seleccionarEquipos,
+
+                onEditarShootouts:
+                abrirShootouts,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

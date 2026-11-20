@@ -1,5 +1,6 @@
 
 import 'package:material_ui/material_ui.dart';
+import 'arena_estilo.dart';
 
 class BloquesFaltas extends StatefulWidget {
   final Map<String, dynamic>? equipoLocal;
@@ -130,6 +131,7 @@ class _BloquesFaltasState extends State<BloquesFaltas> {
 
   // =========================================
   // ALERTA PERSONALIZADA DE SEXTA FALTA
+  // ESTILO ARENA MOUSTACHE
   // SOLO IMAGEN Y BOTÓN ACEPTAR
   // =========================================
 
@@ -144,12 +146,18 @@ class _BloquesFaltasState extends State<BloquesFaltas> {
             MediaQuery.sizeOf(dialogo).height;
 
         return Dialog(
+          backgroundColor: ArenaColores.negro,
+          surfaceTintColor: Colors.transparent,
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 16,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(
+              color: ArenaColores.dorado,
+              width: 2,
+            ),
           ),
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -160,25 +168,59 @@ class _BloquesFaltasState extends State<BloquesFaltas> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: alturaPantalla * 0.65,
+                  // Marco rojo alrededor de la imagen.
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: ArenaColores.rojo,
+                        width: 1.5,
+                      ),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Image.asset(
-                      imagenAlerta,
-                      fit: BoxFit.contain,
+                    padding: const EdgeInsets.all(3),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: alturaPantalla * 0.65,
+                      ),
+                      child: Image.asset(
+                        imagenAlerta,
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
 
+                  // Botón negro con borde dorado.
                   SizedBox(
                     width: double.infinity,
+                    height: 46,
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.pop(dialogo);
                       },
-                      child: const Text('ACEPTAR'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                        const Color(0xFF2D1B1D),
+                        foregroundColor: ArenaColores.dorado,
+                        elevation: 4,
+                        shadowColor: Colors.black87,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: const BorderSide(
+                            color: ArenaColores.dorado,
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                      child: const Text(
+                        'ACEPTAR',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
                     ),
                   ),
                 ],

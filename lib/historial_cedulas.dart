@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -12,6 +11,7 @@ import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'cedula_tactil.dart';
+import 'arena_estilo.dart';
 
 // ================================================
 // DATOS DE UNA FIRMA LOCALIZADA EN LA HOJA
@@ -186,73 +186,104 @@ class _HistorialCedulasState
     }
   }
 
-  Widget tarjetaCedula(
-      Map<String, dynamic> cedula,
-      ) {
-    final local = nombreEquipo(
-      cedula,
-      'equipoLocal',
-    );
+  // ================================================
+  // TARJETA METÁLICA DE PARTIDO GUARDADO
+  // ================================================
 
-    final visitante = nombreEquipo(
-      cedula,
-      'equipoVisitante',
-    );
+  Widget tarjetaCedula(Map<String, dynamic> cedula) {
+    final local = nombreEquipo(cedula, 'equipoLocal');
+    final visitante = nombreEquipo(cedula, 'equipoVisitante');
 
     final firmasGuardadas = cedula['firmas'];
-
     final cantidadFirmas = firmasGuardadas is Map
-        ? firmasGuardadas.values.where(
-          (valor) => valor.toString().isNotEmpty,
-    ).length
+        ? firmasGuardadas.values
+        .where((valor) => valor.toString().isNotEmpty)
+        .length
         : 0;
 
     return Card(
+      color: const Color(0xFFFCFAF7),
+      elevation: 5,
+      shadowColor: Colors.black54,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: const BorderSide(
+          color: ArenaColores.dorado,
+          width: 1.5,
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(15),
         child: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              '$local VS $visitante',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+            Row(
+              children: [
+                const Icon(
+                  Icons.sports_soccer,
+                  color: ArenaColores.rojo,
+                  size: 23,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '$local VS $visitante',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: ArenaColores.negro,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+              ],
             ),
-
-            const SizedBox(height: 8),
-
+            const SizedBox(height: 9),
+            const Divider(
+              color: Color(0xFFD9B48F),
+              height: 1,
+            ),
+            const SizedBox(height: 10),
             Text(
               'Torneo: ${cedula['torneo'] ?? ''}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: ArenaColores.negro,
+                fontSize: 13,
+              ),
             ),
-
+            const SizedBox(height: 3),
             Text(
               'Fecha: ${cedula['fecha'] ?? ''}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: ArenaColores.negro,
+                fontSize: 13,
+              ),
             ),
-
-            const SizedBox(height: 6),
-
+            const SizedBox(height: 10),
             Text(
               'MARCADOR: '
                   '${cedula['golesLocal'] ?? 0} - '
                   '${cedula['golesVisitante'] ?? 0}',
               style: const TextStyle(
-                fontWeight: FontWeight.bold,
+                color: ArenaColores.rojo,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
               ),
             ),
-
             Text(
               'Firmas: $cantidadFirmas de 6',
+              style: const TextStyle(
+                color: Color(0xFF665B54),
+                fontSize: 12,
+              ),
             ),
-
             const Spacer(),
-
             Row(
               children: [
                 Expanded(
@@ -262,31 +293,42 @@ class _HistorialCedulasState
                         context,
                         MaterialPageRoute<void>(
                           builder: (_) => DetalleCedula(
-                            cedula:
-                            Map<String, dynamic>.from(
+                            cedula: Map<String, dynamic>.from(
                               cedula,
                             ),
                           ),
                         ),
                       );
                     },
-                    icon: const Icon(
-                      Icons.visibility,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ArenaColores.negro,
+                      foregroundColor: ArenaColores.dorado,
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: const BorderSide(
+                          color: ArenaColores.dorado,
+                          width: 1.2,
+                        ),
+                      ),
                     ),
+                    icon: const Icon(Icons.visibility, size: 20),
                     label: const Text(
                       'VER CÉDULA',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.6,
+                      ),
                     ),
                   ),
                 ),
-
+                const SizedBox(width: 6),
                 IconButton(
                   tooltip: 'Eliminar cédula',
-                  onPressed: () {
-                    eliminarCedula(cedula);
-                  },
+                  onPressed: () => eliminarCedula(cedula),
                   icon: const Icon(
                     Icons.delete_outline,
-                    color: Colors.red,
+                    color: ArenaColores.rojo,
                   ),
                 ),
               ],
@@ -297,75 +339,124 @@ class _HistorialCedulasState
     );
   }
 
+  // ================================================
+  // HISTORIAL CON FONDO ARENA MOUSTACHE
+  // ================================================
+
+  Widget contenidoHistorial() {
+    if (cargando) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: ArenaColores.dorado,
+        ),
+      );
+    }
+
+    if (error != null || cedulas.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 550),
+            child: ArenaPanel(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    error != null
+                        ? Icons.error_outline
+                        : Icons.folder_open,
+                    size: 50,
+                    color: ArenaColores.rojo,
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    error ??
+                        'No hay cédulas guardadas.\n'
+                            'Crea una nueva cédula y guarda el borrador.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: ArenaColores.negro,
+                      fontSize: 15,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, espacio) {
+        final columnas = espacio.maxWidth >= 760 ? 2 : 1;
+
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1100),
+            child: GridView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: cedulas.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columnas,
+                mainAxisExtent: 265,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+              ),
+              itemBuilder: (context, i) {
+                return tarjetaCedula(cedulas[i]);
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('HISTORIAL DE CÉDULAS'),
-        backgroundColor: Colors.blueGrey,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            onPressed: cargarCedulas,
-            tooltip: 'Actualizar historial',
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
+      appBar: const ArenaBarraSuperior(
+        titulo: 'HISTORIAL DE CÉDULAS',
       ),
-
-      body: cargando
-          ? const Center(
-        child: CircularProgressIndicator(),
-      )
-          : error != null
-          ? Center(
-        child: Text(error!),
-      )
-          : cedulas.isEmpty
-          ? const Center(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Text(
-            'No hay cédulas guardadas.\n'
-                'Crea una nueva cédula y '
-                'guarda el borrador.',
-            textAlign: TextAlign.center,
-          ),
-        ),
-      )
-          : LayoutBuilder(
-        builder: (context, espacio) {
-          final columnas =
-          espacio.maxWidth >= 760
-              ? 2
-              : 1;
-
-          return Center(
-            child: ConstrainedBox(
-              constraints:
-              const BoxConstraints(
-                maxWidth: 1100,
-              ),
-              child: GridView.builder(
-                padding:
-                const EdgeInsets.all(16),
-                itemCount: cedulas.length,
-                gridDelegate:
-                SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: columnas,
-                  mainAxisExtent: 235,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                ),
-                itemBuilder: (context, i) {
-                  return tarjetaCedula(
-                    cedulas[i],
-                  );
-                },
+      body: ArenaFondo(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: ArenaTextoMetalico(
+                      texto: 'CÉDULAS GUARDADAS',
+                      tamano: 21,
+                      dorado: true,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  IconButton(
+                    onPressed: cargarCedulas,
+                    tooltip: 'Actualizar historial',
+                    style: IconButton.styleFrom(
+                      backgroundColor: ArenaColores.negro,
+                      side: const BorderSide(
+                        color: ArenaColores.dorado,
+                        width: 1.3,
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.refresh,
+                      color: ArenaColores.dorado,
+                    ),
+                  ),
+                ],
               ),
             ),
-          );
-        },
+            Expanded(child: contenidoHistorial()),
+          ],
+        ),
       ),
     );
   }
@@ -840,8 +931,8 @@ class _DetalleCedulaState extends State<DetalleCedula> {
             onCamposActualizados: () {},
 
             onEventosActualizados: (_) {},
-             onFaltasBloquesActualizadas: (_) {},
-             onMarcasVisualesActualizadas: (_) {},
+            onFaltasBloquesActualizadas: (_) {},
+            onMarcasVisualesActualizadas: (_) {},
 
             onFirmasActualizadas: (_) {},
 
@@ -866,96 +957,116 @@ class _DetalleCedulaState extends State<DetalleCedula> {
   }
 
   // ================================================
-  // INTERFAZ DEL HISTORIAL
+  // DETALLE CON DISEÑO ARENA MOUSTACHE
+  // LA HOJA Y LA GENERACIÓN DEL PDF NO CAMBIAN
   // ================================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('CÉDULA GUARDADA'),
-        backgroundColor: Colors.blueGrey,
-        foregroundColor: Colors.white,
+      appBar: const ArenaBarraSuperior(
+        titulo: 'CÉDULA GUARDADA',
       ),
-
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ValueListenableBuilder<bool>(
-                valueListenable: exportandoPdf,
-                builder: (context, ocupada, _) {
-                  return ElevatedButton.icon(
-                    onPressed:
-                    ocupada ? null : guardarPdf,
-
-                    icon: ocupada
-                        ? const SizedBox(
-                      width: 19,
-                      height: 19,
-                      child:
-                      CircularProgressIndicator(
-                        strokeWidth: 2,
+      body: ArenaFondo(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: exportandoPdf,
+                  builder: (context, ocupada, _) {
+                    return ElevatedButton.icon(
+                      onPressed: ocupada ? null : guardarPdf,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ArenaColores.negro,
+                        foregroundColor: ArenaColores.dorado,
+                        disabledBackgroundColor: const Color(0xFF625858),
+                        disabledForegroundColor: Colors.white70,
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: const BorderSide(
+                            color: ArenaColores.dorado,
+                            width: 1.5,
+                          ),
+                        ),
                       ),
-                    )
-                        : const Icon(
-                      Icons.picture_as_pdf,
-                    ),
+                      icon: ocupada
+                          ? const SizedBox(
+                        width: 19,
+                        height: 19,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: ArenaColores.dorado,
+                        ),
+                      )
+                          : const Icon(Icons.picture_as_pdf),
+                      label: Text(
+                        ocupada ? 'GENERANDO PDF...' : 'GUARDAR PDF',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.7,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xD91B0505),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: const Color(0x80FFD36B),
+                  ),
+                ),
+                child: const Text(
+                  'Vista de la cédula original. '
+                      'Desliza para recorrer la hoja.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, espacio) {
+                  final ancho = math.max(
+                    espacio.maxWidth,
+                    870.0,
+                  );
 
-                    label: Text(
-                      ocupada
-                          ? 'GENERANDO PDF...'
-                          : 'GUARDAR PDF',
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.vertical,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: ancho,
+                        child: Center(
+                          child: hojaOriginal(),
+                        ),
+                      ),
                     ),
                   );
                 },
               ),
             ),
-          ),
-
-          const Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: 12,
-            ),
-            child: Text(
-              'Vista de la cédula original. '
-                  'Desliza para recorrer la hoja.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 6),
-
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, espacio) {
-                final ancho = math.max(
-                  espacio.maxWidth,
-                  870.0,
-                );
-
-                return SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: SizedBox(
-                      width: ancho,
-                      child: Center(
-                        child: hojaOriginal(),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

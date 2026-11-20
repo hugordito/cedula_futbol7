@@ -63,6 +63,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/alertas/sexta_falta.png
+    - assets/ui/fondo_inicio.png
+    - assets/ui/logo_arena_moustache.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
