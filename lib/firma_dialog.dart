@@ -50,6 +50,10 @@ class _FirmaDialogState extends State<FirmaDialog> {
     );
   }
 
+  // =========================================
+  // GUARDAR FIRMA COMPLETA
+  // =========================================
+
   Future<void> guardarFirma() async {
     if (controlador.isEmpty || guardando) {
       if (controlador.isEmpty) {
@@ -69,14 +73,21 @@ class _FirmaDialogState extends State<FirmaDialog> {
     });
 
     try {
-      final imagen = await controlador.toPngBytes(
-        width: 800,
-        height: 250,
-      );
+      // CORRECCIÓN:
+      // No exportamos con 800 x 250 fijos.
+      //
+      // La librería calcula las dimensiones
+      // necesarias para contener el dibujo.
+      //
+      // Esto evita recortar trazos cuando
+      // el usuario firma en pantallas anchas.
+
+      final Uint8List? imagen =
+      await controlador.toPngBytes();
 
       if (!mounted) return;
 
-      if (imagen == null) {
+      if (imagen == null || imagen.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -113,6 +124,10 @@ class _FirmaDialogState extends State<FirmaDialog> {
     super.dispose();
   }
 
+  // =========================================
+  // INTERFAZ PARA FIRMAR
+  // =========================================
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -140,6 +155,7 @@ class _FirmaDialogState extends State<FirmaDialog> {
               textAlign: TextAlign.center,
             ),
 
+            // Mostrar firma anterior.
             if (widget.firmaAnterior != null) ...[
               const SizedBox(height: 12),
 
@@ -159,11 +175,17 @@ class _FirmaDialogState extends State<FirmaDialog> {
                 'Si guardas una firma nueva, '
                     'reemplazará la anterior.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12),
+                style: TextStyle(
+                  fontSize: 12,
+                ),
               ),
             ],
 
             const SizedBox(height: 18),
+
+            // =================================
+            // ÁREA TÁCTIL PARA FIRMAR
+            // =================================
 
             LayoutBuilder(
               builder: (context, espacio) {
@@ -188,6 +210,10 @@ class _FirmaDialogState extends State<FirmaDialog> {
 
             const SizedBox(height: 16),
 
+            // =================================
+            // BOTONES DE ACCIÓN
+            // =================================
+
             Row(
               children: [
                 Expanded(
@@ -197,8 +223,12 @@ class _FirmaDialogState extends State<FirmaDialog> {
                         controlador.clear();
                       });
                     },
-                    icon: const Icon(Icons.delete),
-                    label: const Text('BORRAR'),
+                    icon: const Icon(
+                      Icons.delete,
+                    ),
+                    label: const Text(
+                      'BORRAR',
+                    ),
                   ),
                 ),
 
@@ -206,10 +236,15 @@ class _FirmaDialogState extends State<FirmaDialog> {
 
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed:
-                    guardando ? null : guardarFirma,
-                    icon: const Icon(Icons.save),
-                    label: const Text('GUARDAR'),
+                    onPressed: guardando
+                        ? null
+                        : guardarFirma,
+                    icon: const Icon(
+                      Icons.save,
+                    ),
+                    label: const Text(
+                      'GUARDAR',
+                    ),
                   ),
                 ),
               ],
@@ -221,7 +256,9 @@ class _FirmaDialogState extends State<FirmaDialog> {
               onPressed: () {
                 Navigator.pop(context);
               },
-              child: const Text('CANCELAR'),
+              child: const Text(
+                'CANCELAR',
+              ),
             ),
           ],
         ),

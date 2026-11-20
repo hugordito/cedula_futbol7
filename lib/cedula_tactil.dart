@@ -1,10 +1,9 @@
 
 import 'dart:convert';
 import 'dart:typed_data';
-
 import 'package:material_ui/material_ui.dart';
-
 import 'firma_dialog.dart';
+import 'bloques_faltas.dart';
 
 class CedulaTactil extends StatefulWidget {
   final Map<String, TextEditingController> campos;
@@ -13,6 +12,8 @@ class CedulaTactil extends StatefulWidget {
 
   final List<Map<String, dynamic>> eventos;
   final List<Map<String, dynamic>> shootouts;
+  final List<Map<String, dynamic>> faltasBloques;
+  final List<Map<String, dynamic>> marcasVisuales;
 
   final Map<String, String> firmas;
 
@@ -26,6 +27,10 @@ class CedulaTactil extends StatefulWidget {
 
   final Future<void> Function() onEditarEquipos;
   final Future<void> Function() onEditarShootouts;
+  final ValueChanged<List<Map<String, dynamic>>>
+      onFaltasBloquesActualizadas;
+  final ValueChanged<List<Map<String, dynamic>>>
+      onMarcasVisualesActualizadas;
 
   const CedulaTactil({
     super.key,
@@ -34,12 +39,16 @@ class CedulaTactil extends StatefulWidget {
     required this.equipoVisitante,
     required this.eventos,
     required this.shootouts,
+    required this.faltasBloques,
+    required this.marcasVisuales,
     required this.firmas,
     required this.onCamposActualizados,
     required this.onEventosActualizados,
     required this.onFirmasActualizadas,
     required this.onEditarEquipos,
     required this.onEditarShootouts,
+    required this.onFaltasBloquesActualizadas,
+    required this.onMarcasVisualesActualizadas,
   });
 
   @override
@@ -49,7 +58,6 @@ class CedulaTactil extends StatefulWidget {
 
 class _CedulaTactilState extends State<CedulaTactil> {
   static const int maxJugadores = 20;
-
   static const List<String> clavesFirmas = [
     'firmaLocal',
     'firmaArbitro1',
@@ -107,21 +115,40 @@ class _CedulaTactilState extends State<CedulaTactil> {
       String tipo, {
         int? numero,
       }) {
-    return widget.eventos.where((item) {
-      if (item['lado'] != lado ||
-          item['tipo'] != tipo) {
-        return false;
-      }
+    final eventosRegistrados = widget.eventos.where(
+          (item) {
+        if (item['lado'] != lado ||
+            item['tipo'] != tipo) {
+          return false;
+        }
 
-      if (numero == null) {
-        return true;
-      }
+        if (numero == null) return true;
 
-      return int.tryParse(
-        item['numero'].toString(),
-      ) ==
-          numero;
-    }).length;
+        return int.tryParse(
+          item['numero'].toString(),
+        ) == numero;
+      },
+    ).length;
+
+    if (tipo != 'falta') {
+      return eventosRegistrados;
+    }
+
+    final nuevasFaltas = widget.faltasBloques.where(
+          (item) {
+        if (item['lado'] != lado) {
+          return false;
+        }
+
+        if (numero == null) return true;
+
+        return int.tryParse(
+          item['numero'].toString(),
+        ) == numero;
+      },
+    ).length;
+
+    return eventosRegistrados + nuevasFaltas;
   }
 
   void aviso(String texto) {
@@ -131,6 +158,7 @@ class _CedulaTactilState extends State<CedulaTactil> {
       SnackBar(content: Text(texto)),
     );
   }
+
 
   // =========================================
   // EDITAR DATOS GENERALES TOCANDO LA HOJA
@@ -1526,9 +1554,16 @@ class _CedulaTactilState extends State<CedulaTactil> {
 
             seccion('FALTAS'),
 
-            dosColumnas(
-              panelFaltas('local'),
-              panelFaltas('visitante'),
+            BloquesFaltas(
+              equipoLocal: widget.equipoLocal,
+              equipoVisitante: widget.equipoVisitante,
+
+              faltas: widget.faltasBloques,
+              marcasVisuales: widget.marcasVisuales,
+
+              onFaltasActualizadas: widget.onFaltasBloquesActualizadas,
+
+              onMarcasActualizadas: widget.onMarcasVisualesActualizadas,
             ),
 
             seccion('DEFINICIÓN EN SHOOT OUT'),

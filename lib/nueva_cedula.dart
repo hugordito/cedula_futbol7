@@ -40,6 +40,8 @@ class _NuevaCedulaState extends State<NuevaCedula> {
 
   List<Map<String, dynamic>> eventos = [];
   List<Map<String, dynamic>> shootouts = [];
+  List<Map<String, dynamic>> faltasBloques = [];
+  List<Map<String, dynamic>> marcasVisuales = [];
 
   // Cada entrada contiene una firma PNG en Base64.
   Map<String, String> firmas = {};
@@ -61,11 +63,16 @@ class _NuevaCedulaState extends State<NuevaCedula> {
   }
 
   int contar(String lado, String tipo) {
-    return eventos.where(
-          (evento) =>
-      evento['lado'] == lado &&
-          evento['tipo'] == tipo,
+    final eventosContados = eventos.where(
+      (item) => item['lado'] == lado && item['tipo'] == tipo,
     ).length;
+
+    if (tipo != 'falta') return eventosContados;
+
+    return eventosContados +
+        faltasBloques.where(
+          (item) => item['lado'] == lado,
+        ).length;
   }
 
   int shootoutsAcertados(String lado) {
@@ -150,6 +157,8 @@ class _NuevaCedulaState extends State<NuevaCedula> {
         if (cambiaron) {
           eventos = [];
           shootouts = [];
+          faltasBloques = [];
+          marcasVisuales = [];
 
           // Evita conservar firmas de otro partido
           // cuando se cambia la selección de equipos.
@@ -296,6 +305,8 @@ class _NuevaCedulaState extends State<NuevaCedula> {
 
         'eventos': eventos,
         'shootouts': shootouts,
+        'faltasBloques': faltasBloques,
+        'marcasVisuales': marcasVisuales,
 
         // Las seis firmas guardadas en la hoja.
         'firmas': Map<String, String>.from(firmas),
@@ -748,10 +759,22 @@ class _NuevaCedulaState extends State<NuevaCedula> {
               eventos: eventos,
 
               shootouts: shootouts,
+               faltasBloques: faltasBloques,
+               marcasVisuales: marcasVisuales,
 
               firmas: firmas,
 
-              onCamposActualizados: () {
+              onFaltasBloquesActualizadas: (nuevas) {
+                 setState(() {
+                   faltasBloques = nuevas;
+                 });
+               },
+               onMarcasVisualesActualizadas: (nuevas) {
+                 setState(() {
+                   marcasVisuales = nuevas;
+                 });
+               },
+               onCamposActualizados: () {
                 setState(() {});
               },
 

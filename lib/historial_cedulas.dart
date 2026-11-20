@@ -402,6 +402,8 @@ class _DetalleCedulaState extends State<DetalleCedula> {
 
   late final List<Map<String, dynamic>> eventos;
   late final List<Map<String, dynamic>> shootouts;
+  late final List<Map<String, dynamic>> faltasBloques;
+  late final List<Map<String, dynamic>> marcasVisuales;
   late final Map<String, String> firmas;
 
   // Claves de las firmas originales.
@@ -459,6 +461,8 @@ class _DetalleCedulaState extends State<DetalleCedula> {
     shootouts = convertirLista(
       guardada['shootouts'],
     );
+    faltasBloques = convertirLista(guardada['faltasBloques']);
+    marcasVisuales = convertirLista(guardada['marcasVisuales']);
 
     firmas = convertirFirmas(
       guardada['firmas'],
@@ -829,11 +833,15 @@ class _DetalleCedulaState extends State<DetalleCedula> {
             equipoVisitante: equipoVisitante,
             eventos: eventos,
             shootouts: shootouts,
+            faltasBloques: faltasBloques,
+            marcasVisuales: marcasVisuales,
             firmas: firmas,
 
             onCamposActualizados: () {},
 
             onEventosActualizados: (_) {},
+             onFaltasBloquesActualizadas: (_) {},
+             onMarcasVisualesActualizadas: (_) {},
 
             onFirmasActualizadas: (_) {},
 
