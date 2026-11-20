@@ -13,9 +13,25 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'cedula_tactil.dart';
 
-// =============================================
-// HISTORIAL DE CÉDULAS
-// =============================================
+// ================================================
+// DATOS DE UNA FIRMA LOCALIZADA EN LA HOJA
+// ================================================
+
+class _FirmaLocalizada {
+  final String clave;
+  final Uint8List imagen;
+  final ui.Rect rectangulo;
+
+  const _FirmaLocalizada({
+    required this.clave,
+    required this.imagen,
+    required this.rectangulo,
+  });
+}
+
+// ================================================
+// HISTORIAL DE CEDULAS
+// ================================================
 
 class HistorialCedulas extends StatefulWidget {
   const HistorialCedulas({super.key});
@@ -52,13 +68,10 @@ class _HistorialCedulasState
         'cedulas_borrador',
       );
 
-      final guardadas =
-      jsonDecode(texto ?? '[]') as List;
-
-      final lista = guardadas
+      final lista = (jsonDecode(texto ?? '[]') as List)
           .map(
-            (e) => Map<String, dynamic>.from(
-          e as Map,
+            (item) => Map<String, dynamic>.from(
+          item as Map,
         ),
       )
           .toList();
@@ -91,10 +104,10 @@ class _HistorialCedulasState
       Map<String, dynamic> cedula,
       String clave,
       ) {
-    final equipo = cedula[clave];
+    final valor = cedula[clave];
 
-    if (equipo is Map) {
-      return (equipo['nombre'] ?? 'SIN EQUIPO')
+    if (valor is Map) {
+      return (valor['nombre'] ?? 'SIN EQUIPO')
           .toString();
     }
 
@@ -110,7 +123,7 @@ class _HistorialCedulasState
         title: const Text('Eliminar cédula'),
         content: const Text(
           'Se eliminarán los datos y las firmas '
-              'de esta cédula. '
+              'guardadas de este partido. '
               'Esta acción no se puede deshacer.',
         ),
         actions: [
@@ -139,16 +152,15 @@ class _HistorialCedulasState
         'cedulas_borrador',
       );
 
-      final lista =
-      (jsonDecode(texto ?? '[]') as List)
+      final lista = (jsonDecode(texto ?? '[]') as List)
           .map(
-            (e) => Map<String, dynamic>.from(
-          e as Map,
+            (item) => Map<String, dynamic>.from(
+          item as Map,
         ),
       )
           .where(
-            (e) =>
-        e['id'].toString() !=
+            (item) =>
+        item['id'].toString() !=
             cedula['id'].toString(),
       )
           .toList();
@@ -167,7 +179,7 @@ class _HistorialCedulasState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'No se pudo eliminar: $e',
+            'No se pudo eliminar la cédula: $e',
           ),
         ),
       );
@@ -187,10 +199,13 @@ class _HistorialCedulasState
       'equipoVisitante',
     );
 
-    final guardadas = cedula['firmas'];
+    final firmasGuardadas = cedula['firmas'];
 
-    final totalFirmas =
-    guardadas is Map ? guardadas.length : 0;
+    final cantidadFirmas = firmasGuardadas is Map
+        ? firmasGuardadas.values.where(
+          (valor) => valor.toString().isNotEmpty,
+    ).length
+        : 0;
 
     return Card(
       child: Padding(
@@ -232,7 +247,9 @@ class _HistorialCedulasState
               ),
             ),
 
-            Text('Firmas: $totalFirmas de 6'),
+            Text(
+              'Firmas: $cantidadFirmas de 6',
+            ),
 
             const Spacer(),
 
@@ -256,19 +273,21 @@ class _HistorialCedulasState
                     icon: const Icon(
                       Icons.visibility,
                     ),
-                    label: const Text('VER CÉDULA'),
+                    label: const Text(
+                      'VER CÉDULA',
+                    ),
                   ),
                 ),
 
                 IconButton(
-                  tooltip: 'Eliminar borrador',
+                  tooltip: 'Eliminar cédula',
+                  onPressed: () {
+                    eliminarCedula(cedula);
+                  },
                   icon: const Icon(
                     Icons.delete_outline,
                     color: Colors.red,
                   ),
-                  onPressed: () {
-                    eliminarCedula(cedula);
-                  },
                 ),
               ],
             ),
@@ -288,8 +307,8 @@ class _HistorialCedulasState
         actions: [
           IconButton(
             onPressed: cargarCedulas,
-            icon: const Icon(Icons.refresh),
             tooltip: 'Actualizar historial',
+            icon: const Icon(Icons.refresh),
           ),
         ],
       ),
@@ -299,14 +318,19 @@ class _HistorialCedulasState
         child: CircularProgressIndicator(),
       )
           : error != null
-          ? Center(child: Text(error!))
+          ? Center(
+        child: Text(error!),
+      )
           : cedulas.isEmpty
           ? const Center(
-        child: Text(
-          'Aún no hay cédulas guardadas.\n'
-              'Crea una cédula y guarda '
-              'el borrador.',
-          textAlign: TextAlign.center,
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Text(
+            'No hay cédulas guardadas.\n'
+                'Crea una nueva cédula y '
+                'guarda el borrador.',
+            textAlign: TextAlign.center,
+          ),
         ),
       )
           : LayoutBuilder(
@@ -330,8 +354,8 @@ class _HistorialCedulasState
                 SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: columnas,
                   mainAxisExtent: 235,
-                  crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
                 ),
                 itemBuilder: (context, i) {
                   return tarjetaCedula(
@@ -347,10 +371,9 @@ class _HistorialCedulasState
   }
 }
 
-// =============================================
-// DETALLE DE CÉDULA
-// UTILIZA LA MISMA CedulaTactil ORIGINAL
-// =============================================
+// ================================================
+// DETALLE DE CEDULA
+// ================================================
 
 class DetalleCedula extends StatefulWidget {
   final Map<String, dynamic> cedula;
@@ -368,9 +391,6 @@ class DetalleCedula extends StatefulWidget {
 class _DetalleCedulaState extends State<DetalleCedula> {
   final GlobalKey capturaKey = GlobalKey();
 
-  // IMPORTANTE:
-  // Este indicador reconstruye SOLO el botón.
-  // No reconstruye la hoja ni sus firmas.
   final ValueNotifier<bool> exportandoPdf =
   ValueNotifier<bool>(false);
 
@@ -382,8 +402,17 @@ class _DetalleCedulaState extends State<DetalleCedula> {
 
   late final List<Map<String, dynamic>> eventos;
   late final List<Map<String, dynamic>> shootouts;
-
   late final Map<String, String> firmas;
+
+  // Claves de las firmas originales.
+  static const List<String> clavesFirmas = [
+    'firmaLocal',
+    'firmaArbitro1',
+    'firmaArbitro2',
+    'firmaAsistente',
+    'firmaCronometrista',
+    'firmaVisitante',
+  ];
 
   static const List<String> clavesCampos = [
     'ciudad',
@@ -454,7 +483,8 @@ class _DetalleCedulaState extends State<DetalleCedula> {
     return valor
         .whereType<Map>()
         .map(
-          (e) => Map<String, dynamic>.from(e),
+          (item) =>
+      Map<String, dynamic>.from(item),
     )
         .toList();
   }
@@ -479,26 +509,110 @@ class _DetalleCedulaState extends State<DetalleCedula> {
         .toString();
   }
 
-  void mensaje(String texto) {
+  void mostrarMensaje(String texto) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(texto),
-      ),
+      SnackBar(content: Text(texto)),
     );
   }
 
-  // =============================================
-  // GENERAR EL PDF SIN RECONSTRUIR LAS FIRMAS
-  // =============================================
+  // ================================================
+  // ENCONTRAR LAS IMAGENES REALES DE LAS FIRMAS
+  // ================================================
+
+  List<_FirmaLocalizada> localizarFirmas(
+      RenderRepaintBoundary limite,
+      ) {
+    final contextHoja = capturaKey.currentContext;
+
+    if (contextHoja is! Element) {
+      throw StateError(
+        'No se puede acceder a la hoja original.',
+      );
+    }
+
+    final localizadas = <String, _FirmaLocalizada>{};
+
+    void recorrer(Element elemento) {
+      final componente = elemento.widget;
+
+      if (componente is Image &&
+          componente.image is MemoryImage) {
+        final proveedor =
+        componente.image as MemoryImage;
+
+        final firmaBase64 = base64Encode(
+          proveedor.bytes,
+        );
+
+        for (final clave in clavesFirmas) {
+          if (localizadas.containsKey(clave)) {
+            continue;
+          }
+
+          if (firmas[clave] != firmaBase64) {
+            continue;
+          }
+
+          final objeto = elemento.findRenderObject();
+
+          if (objeto is! RenderBox ||
+              !objeto.attached ||
+              objeto.size.isEmpty) {
+            continue;
+          }
+
+          final transformacion =
+          objeto.getTransformTo(limite);
+
+          final rectangulo = MatrixUtils.transformRect(
+            transformacion,
+            ui.Offset.zero & objeto.size,
+          );
+
+          if (rectangulo.isEmpty ||
+              !rectangulo.left.isFinite ||
+              !rectangulo.top.isFinite) {
+            continue;
+          }
+
+          localizadas[clave] = _FirmaLocalizada(
+            clave: clave,
+            imagen: proveedor.bytes,
+            rectangulo: rectangulo,
+          );
+
+          break;
+        }
+      }
+
+      elemento.visitChildren(recorrer);
+    }
+
+    recorrer(contextHoja);
+
+    return [
+      for (final clave in clavesFirmas)
+        if (localizadas.containsKey(clave))
+          localizadas[clave]!,
+    ];
+  }
+
+  int contarFirmasEsperadas() {
+    return clavesFirmas.where(
+          (clave) =>
+      (firmas[clave] ?? '').trim().isNotEmpty,
+    ).length;
+  }
+
+  // ================================================
+  // EXPORTACION PDF CON FIRMAS SUPERPUESTAS
+  // ================================================
 
   Future<void> guardarPdf() async {
     if (exportandoPdf.value) return;
 
-    // No utilizamos setState en esta función.
-    // Así no reiniciamos las imágenes de las firmas
-    // que ya estaban visibles en el historial.
     exportandoPdf.value = true;
 
     try {
@@ -506,73 +620,167 @@ class _DetalleCedulaState extends State<DetalleCedula> {
 
       if (!mounted) return;
 
-      final render = capturaKey.currentContext
+      final objeto = capturaKey.currentContext
           ?.findRenderObject();
 
-      if (render is! RenderRepaintBoundary) {
-        throw Exception(
+      if (objeto is! RenderRepaintBoundary) {
+        throw StateError(
           'No se encontró la hoja para exportar.',
         );
       }
 
-      if (render.size.isEmpty) {
-        throw Exception(
+      if (objeto.size.isEmpty) {
+        throw StateError(
           'La hoja no tiene un tamaño válido.',
         );
       }
 
-      // Captura la misma hoja que muestra
-      // el historial, sin reconstruir sus tablas.
-      final escala = math.min(
-        2.0,
-        math.min(
-          3000.0 / render.size.width,
-          6000.0 / render.size.height,
-        ),
+      // Identificamos las imágenes originales
+      // de las firmas y sus coordenadas.
+      final firmasLocalizadas = localizarFirmas(
+        objeto,
       );
 
-      final ui.Image imagen = await render.toImage(
-        pixelRatio: escala,
-      );
+      final esperadas = contarFirmasEsperadas();
 
-      final datos = await imagen.toByteData(
-        format: ui.ImageByteFormat.png,
-      );
-
-      imagen.dispose();
-
-      if (datos == null) {
-        throw Exception(
-          'No se pudo generar la imagen '
-              'de la cédula.',
+      if (firmasLocalizadas.length != esperadas) {
+        throw StateError(
+          'Se localizaron ${firmasLocalizadas.length} '
+              'de $esperadas firmas guardadas. '
+              'No se exportó el PDF para evitar '
+              'generar una cédula incompleta.',
         );
       }
 
-      final Uint8List png =
+      // Capturamos la misma hoja que aparece
+      // dentro de HISTORIAL.
+      final escala = math.min(
+        2.0,
+        math.min(
+          3000.0 / objeto.size.width,
+          6000.0 / objeto.size.height,
+        ),
+      );
+
+      final ui.Image captura = await objeto.toImage(
+        pixelRatio: escala,
+      );
+
+      final datos = await captura.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
+
+      captura.dispose();
+
+      if (datos == null) {
+        throw StateError(
+          'No se pudo capturar la cédula.',
+        );
+      }
+
+      final Uint8List pngHoja =
       datos.buffer.asUint8List();
 
       final documento = pw.Document();
 
-      final imagenPdf = pw.MemoryImage(png);
+      final imagenHoja = pw.MemoryImage(pngHoja);
+
+      // Formato A4 vertical.
+      final anchoPagina = PdfPageFormat.a4.width;
+      final altoPagina = PdfPageFormat.a4.height;
+
+      final factor = math.min(
+        anchoPagina / objeto.size.width,
+        altoPagina / objeto.size.height,
+      );
+
+      final anchoDibujado =
+          objeto.size.width * factor;
+
+      final altoDibujado =
+          objeto.size.height * factor;
+
+      final margenX =
+          (anchoPagina - anchoDibujado) / 2;
+
+      final margenY =
+          (altoPagina - altoDibujado) / 2;
+
+      // Aquí está la corrección:
+      // pw.Positioned recibe la ubicación.
+      // pw.SizedBox recibe el ancho y alto.
+      final capasPdf = <pw.Widget>[
+        pw.Positioned(
+          left: margenX,
+          top: margenY,
+          child: pw.SizedBox(
+            width: anchoDibujado,
+            height: altoDibujado,
+            child: pw.Image(
+              imagenHoja,
+              fit: pw.BoxFit.fill,
+            ),
+          ),
+        ),
+      ];
+
+      // Incorporar los PNG de las firmas
+      // sobre sus posiciones originales.
+      for (final firma in firmasLocalizadas) {
+        final rectangulo = firma.rectangulo;
+
+        final izquierda =
+            margenX + rectangulo.left * factor;
+
+        final arriba =
+            margenY + rectangulo.top * factor;
+
+        final ancho =
+            rectangulo.width * factor;
+
+        final alto =
+            rectangulo.height * factor;
+
+        if (ancho <= 0 || alto <= 0) {
+          throw StateError(
+            'La posición de ${firma.clave} '
+                'no es válida.',
+          );
+        }
+
+        // Segunda corrección:
+        // Las medidas también pertenecen
+        // a pw.SizedBox, no a pw.Positioned.
+        capasPdf.add(
+          pw.Positioned(
+            left: izquierda,
+            top: arriba,
+            child: pw.SizedBox(
+              width: ancho,
+              height: alto,
+              child: pw.Image(
+                pw.MemoryImage(firma.imagen),
+                fit: pw.BoxFit.contain,
+              ),
+            ),
+          ),
+        );
+      }
 
       documento.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4,
           margin: pw.EdgeInsets.zero,
-          build: (_) => pw.Center(
-            child: pw.Image(
-              imagenPdf,
-              width: PdfPageFormat.a4.width,
-              height: PdfPageFormat.a4.height,
-              fit: pw.BoxFit.contain,
-            ),
+          build: (_) => pw.Stack(
+            fit: pw.StackFit.expand,
+            children: capasPdf,
           ),
         ),
       );
 
       final bytesPdf = await documento.save();
 
-      final nombre =
+      final archivo =
       'cedula_${nombreEquipo(equipoLocal)}_vs_'
           '${nombreEquipo(equipoVisitante)}.pdf'
           .replaceAll(
@@ -584,11 +792,18 @@ class _DetalleCedulaState extends State<DetalleCedula> {
 
       await Printing.sharePdf(
         bytes: bytesPdf,
-        filename: nombre,
+        filename: archivo,
+      );
+
+      if (!mounted) return;
+
+      mostrarMensaje(
+        'PDF generado con '
+            '${firmasLocalizadas.length} firmas.',
       );
     } catch (e) {
-      mensaje(
-        'No se pudo generar el PDF: $e',
+      mostrarMensaje(
+        'No se pudo exportar el PDF: $e',
       );
     } finally {
       if (mounted) {
@@ -597,9 +812,9 @@ class _DetalleCedulaState extends State<DetalleCedula> {
     }
   }
 
-  // =============================================
-  // HOJA ORIGINAL EN MODO SOLO LECTURA
-  // =============================================
+  // ================================================
+  // REUTILIZAR LA CEDULA ORIGINAL SIN EDITARLA
+  // ================================================
 
   Widget hojaOriginal() {
     return RepaintBoundary(
@@ -642,6 +857,10 @@ class _DetalleCedulaState extends State<DetalleCedula> {
     super.dispose();
   }
 
+  // ================================================
+  // INTERFAZ DEL HISTORIAL
+  // ================================================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -658,16 +877,12 @@ class _DetalleCedulaState extends State<DetalleCedula> {
             child: SizedBox(
               width: double.infinity,
               height: 48,
-
-              // Solo este botón cambia cuando
-              // comienza o termina la exportación.
               child: ValueListenableBuilder<bool>(
                 valueListenable: exportandoPdf,
                 builder: (context, ocupada, _) {
                   return ElevatedButton.icon(
-                    onPressed: ocupada
-                        ? null
-                        : guardarPdf,
+                    onPressed:
+                    ocupada ? null : guardarPdf,
 
                     icon: ocupada
                         ? const SizedBox(
@@ -699,7 +914,7 @@ class _DetalleCedulaState extends State<DetalleCedula> {
             ),
             child: Text(
               'Vista de la cédula original. '
-                  'Desliza para recorrerla.',
+                  'Desliza para recorrer la hoja.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
