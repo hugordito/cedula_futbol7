@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:material_ui/material_ui.dart';
 import 'firma_dialog.dart';
 import 'bloques_faltas.dart';
+import 'selector_torneo_categoria.dart';
 
 class CedulaTactil extends StatefulWidget {
   final Map<String, TextEditingController> campos;
@@ -16,21 +17,18 @@ class CedulaTactil extends StatefulWidget {
   final List<Map<String, dynamic>> marcasVisuales;
 
   final Map<String, String> firmas;
-
   final VoidCallback onCamposActualizados;
-
   final ValueChanged<List<Map<String, dynamic>>>
   onEventosActualizados;
-
   final ValueChanged<Map<String, String>>
   onFirmasActualizadas;
 
   final Future<void> Function() onEditarEquipos;
   final Future<void> Function() onEditarShootouts;
   final ValueChanged<List<Map<String, dynamic>>>
-      onFaltasBloquesActualizadas;
+  onFaltasBloquesActualizadas;
   final ValueChanged<List<Map<String, dynamic>>>
-      onMarcasVisualesActualizadas;
+  onMarcasVisualesActualizadas;
 
   const CedulaTactil({
     super.key,
@@ -58,6 +56,7 @@ class CedulaTactil extends StatefulWidget {
 
 class _CedulaTactilState extends State<CedulaTactil> {
   static const int maxJugadores = 20;
+
   static const List<String> clavesFirmas = [
     'firmaLocal',
     'firmaArbitro1',
@@ -126,7 +125,8 @@ class _CedulaTactilState extends State<CedulaTactil> {
 
         return int.tryParse(
           item['numero'].toString(),
-        ) == numero;
+        ) ==
+            numero;
       },
     ).length;
 
@@ -144,7 +144,8 @@ class _CedulaTactilState extends State<CedulaTactil> {
 
         return int.tryParse(
           item['numero'].toString(),
-        ) == numero;
+        ) ==
+            numero;
       },
     ).length;
 
@@ -159,7 +160,6 @@ class _CedulaTactilState extends State<CedulaTactil> {
     );
   }
 
-
   // =========================================
   // EDITAR DATOS GENERALES TOCANDO LA HOJA
   // =========================================
@@ -168,6 +168,17 @@ class _CedulaTactilState extends State<CedulaTactil> {
       String clave,
       String titulo,
       ) async {
+    if (clave == 'torneo' || clave == 'categoria') {
+      await SelectorTorneoCategoria.seleccionar(
+        context: context,
+        campos: widget.campos,
+        onCamposActualizados:
+        widget.onCamposActualizados,
+        desdeCategoria: clave == 'categoria',
+      );
+      return;
+    }
+
     final controlador = TextEditingController(
       text: dato(clave),
     );
@@ -299,7 +310,6 @@ class _CedulaTactilState extends State<CedulaTactil> {
         Map<String, String>.from(widget.firmas);
 
         nuevasFirmas.remove(clave);
-
         widget.onFirmasActualizadas(nuevasFirmas);
         aviso('Firma eliminada');
         return;
@@ -326,7 +336,6 @@ class _CedulaTactilState extends State<CedulaTactil> {
     Map<String, String>.from(widget.firmas);
 
     nuevasFirmas[clave] = base64Encode(imagen);
-
     widget.onFirmasActualizadas(nuevasFirmas);
 
     aviso('Firma guardada en la cédula');
@@ -416,7 +425,7 @@ class _CedulaTactilState extends State<CedulaTactil> {
   }
 
   // =========================================
-  // REGISTRO TACTIL DE ACONTECIMIENTOS
+  // REGISTRO TÁCTIL DE ACONTECIMIENTOS
   // =========================================
 
   Future<void> editarEvento(
@@ -744,7 +753,7 @@ class _CedulaTactilState extends State<CedulaTactil> {
   }
 
   // =========================================
-  // CELDAS TACTILES
+  // CELDAS TÁCTILES
   // =========================================
 
   Widget celda(
@@ -866,23 +875,60 @@ class _CedulaTactilState extends State<CedulaTactil> {
     );
   }
 
+  // =========================================
+  // ENCABEZADO CON LOGOTIPOS FIJOS
+  // =========================================
+
   Widget encabezado() {
     return Column(
       children: [
-        const Text(
-          'ACTA DE JUEGO FÚTBOL 7',
-          style: TextStyle(
-            fontSize: 19,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'CÉDULA DIGITAL INTERACTIVA',
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.black,
+        SizedBox(
+          height: 108,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 112,
+                height: 105,
+                child: Image.asset(
+                  'assets/ui/logo_arena.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+              const Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'ACTA DE JUEGO FÚTBOL 7',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'CÉDULA DIGITAL INTERACTIVA',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: 112,
+                height: 105,
+                child: Image.asset(
+                  'assets/ui/logo_arbitros.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 14),
@@ -1058,9 +1104,7 @@ class _CedulaTactilState extends State<CedulaTactil> {
           'GOLES - ${lado.toUpperCase()}',
           tocar: () => editarEvento(lado, 'gol'),
         ),
-        for (int bloque = 0;
-        bloque < bloques;
-        bloque++)
+        for (int bloque = 0; bloque < bloques; bloque++)
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Table(
@@ -1323,7 +1367,7 @@ class _CedulaTactilState extends State<CedulaTactil> {
   }
 
   // =========================================
-  // CUERPO TECNICO
+  // CUERPO TÉCNICO
   // =========================================
 
   Widget cuerpoTecnico(String lado) {
@@ -1557,13 +1601,12 @@ class _CedulaTactilState extends State<CedulaTactil> {
             BloquesFaltas(
               equipoLocal: widget.equipoLocal,
               equipoVisitante: widget.equipoVisitante,
-
               faltas: widget.faltasBloques,
               marcasVisuales: widget.marcasVisuales,
-
-              onFaltasActualizadas: widget.onFaltasBloquesActualizadas,
-
-              onMarcasActualizadas: widget.onMarcasVisualesActualizadas,
+              onFaltasActualizadas:
+              widget.onFaltasBloquesActualizadas,
+              onMarcasActualizadas:
+              widget.onMarcasVisualesActualizadas,
             ),
 
             seccion('DEFINICIÓN EN SHOOT OUT'),
@@ -1607,8 +1650,7 @@ class _CedulaTactilState extends State<CedulaTactil> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, espacio) {
-        final anchoHoja =
-        (espacio.maxWidth - 24)
+        final anchoHoja = (espacio.maxWidth - 24)
             .clamp(720.0, 850.0)
             .toDouble();
 

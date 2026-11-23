@@ -1,8 +1,10 @@
+
 import 'package:material_ui/material_ui.dart';
 
 import 'agregar_equipo.dart';
+import 'agregar_categoria.dart';
 import 'editar_equipo.dart';
-import 'cargar_equipo.dart';
+import 'equipos_guardados.dart';
 import 'nueva_cedula.dart';
 import 'historial_cedulas.dart';
 
@@ -40,11 +42,14 @@ class CedulaFutbolApp extends StatelessWidget {
 class PantallaPrincipal extends StatelessWidget {
   const PantallaPrincipal({super.key});
 
-  static const String fondoInicio = 'assets/ui/fondo_inicio.png';
-  static const String logoEmpresa = 'assets/ui/logo_arena_moustache.png';
+  static const String fondoInicio =
+      'assets/ui/fondo_inicio.png';
+
+  static const String logoEmpresa =
+      'assets/ui/logo_arena_moustache.png';
 
   // ==========================================
-  // TEXTO CON EFECTO METÁLICO
+  // TEXTO METÁLICO
   // ==========================================
 
   Widget textoMetalico(
@@ -101,7 +106,7 @@ class PantallaPrincipal extends StatelessWidget {
   }
 
   // ==========================================
-  // NAVEGACIÓN
+  // NAVEGACIÓN PRINCIPAL
   // ==========================================
 
   Future<void> abrirPantalla(
@@ -112,35 +117,50 @@ class PantallaPrincipal extends StatelessWidget {
       await Navigator.push<void>(
         context,
         MaterialPageRoute<void>(
-          builder: (context) => const AgregarEquipo(),
+          builder: (context) =>
+          const AgregarEquipo(),
+        ),
+      );
+    } else if (opcion == 'AGREGAR CATEGORÍA') {
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute<void>(
+          builder: (context) =>
+          const AgregarCategoria(),
         ),
       );
     } else if (opcion == 'EDITAR EQUIPO') {
       await Navigator.push<void>(
         context,
         MaterialPageRoute<void>(
-          builder: (context) => const EditarEquipo(),
+          builder: (context) =>
+          const EditarEquipo(),
         ),
       );
-    } else if (opcion == 'CARGAR EQUIPO') {
+    } else if (opcion == 'EQUIPOS GUARDADOS') {
       await Navigator.push<void>(
         context,
         MaterialPageRoute<void>(
-          builder: (context) => const CargarEquipo(),
+          builder: (context) =>
+          const EquiposGuardados(),
         ),
       );
     } else if (opcion == 'CREAR NUEVA CÉDULA') {
-      final guardado = await Navigator.push<bool>(
+      final guardado =
+      await Navigator.push<bool>(
         context,
         MaterialPageRoute<bool>(
-          builder: (context) => const NuevaCedula(),
+          builder: (context) =>
+          const NuevaCedula(),
         ),
       );
 
       if (guardado == true && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Borrador guardado correctamente'),
+            content: Text(
+              'Borrador guardado correctamente',
+            ),
           ),
         );
       }
@@ -148,14 +168,15 @@ class PantallaPrincipal extends StatelessWidget {
       await Navigator.push<void>(
         context,
         MaterialPageRoute<void>(
-          builder: (context) => const HistorialCedulas(),
+          builder: (context) =>
+          const HistorialCedulas(),
         ),
       );
     }
   }
 
   // ==========================================
-  // BOTONES
+  // BOTONES METÁLICOS
   // ==========================================
 
   Widget crearBoton(
@@ -195,9 +216,14 @@ class PantallaPrincipal extends StatelessWidget {
             ),
           ),
           child: InkWell(
-            onTap: () => abrirPantalla(context, texto),
-            splashColor: acento.withValues(alpha: 0.20),
-            highlightColor: acento.withValues(alpha: 0.10),
+            onTap: () => abrirPantalla(
+              context,
+              texto,
+            ),
+            splashColor:
+            acento.withValues(alpha: 0.20),
+            highlightColor:
+            acento.withValues(alpha: 0.10),
             child: Stack(
               children: [
                 Positioned(
@@ -207,7 +233,8 @@ class PantallaPrincipal extends StatelessWidget {
                   child: Container(
                     height: 2,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(3),
+                      borderRadius:
+                      BorderRadius.circular(3),
                       gradient: LinearGradient(
                         colors: [
                           acento.withValues(alpha: 0),
@@ -218,11 +245,13 @@ class PantallaPrincipal extends StatelessWidget {
                     ),
                   ),
                 ),
+
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.all(10),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisAlignment:
+                      MainAxisAlignment.center,
                       children: [
                         Icon(
                           icono,
@@ -236,7 +265,9 @@ class PantallaPrincipal extends StatelessWidget {
                             ),
                           ],
                         ),
+
                         const SizedBox(height: 10),
+
                         textoMetalico(
                           texto,
                           fontSize: 14,
@@ -258,8 +289,12 @@ class PantallaPrincipal extends StatelessWidget {
   // BARRA SUPERIOR
   // ==========================================
 
-  Widget crearBarraSuperior(BuildContext context) {
-    final anchoPantalla = MediaQuery.sizeOf(context).width;
+  Widget crearBarraSuperior(
+      BuildContext context,
+      ) {
+    final anchoPantalla =
+        MediaQuery.sizeOf(context).width;
+
     final esCompacto = anchoPantalla < 600;
 
     return Row(
@@ -278,7 +313,9 @@ class PantallaPrincipal extends StatelessWidget {
             ),
           ),
         ),
+
         const SizedBox(width: 12),
+
         Expanded(
           child: Align(
             alignment: Alignment.centerRight,
@@ -315,8 +352,13 @@ class PantallaPrincipal extends StatelessWidget {
             logoEmpresa,
             fit: BoxFit.contain,
             filterQuality: FilterQuality.high,
-            semanticLabel: 'Logotipo de Arena Moustache',
-            errorBuilder: (context, error, stackTrace) {
+            semanticLabel:
+            'Logotipo de Arena Moustache',
+            errorBuilder: (
+                context,
+                error,
+                stackTrace,
+                ) {
               return const Center(
                 child: Text(
                   'ARENA MOUSTACHE',
@@ -337,7 +379,7 @@ class PantallaPrincipal extends StatelessWidget {
   }
 
   // ==========================================
-  // UI PRINCIPAL
+  // PANTALLA PRINCIPAL
   // ==========================================
 
   @override
@@ -357,6 +399,7 @@ class PantallaPrincipal extends StatelessWidget {
           ),
         ),
       ),
+
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -369,7 +412,8 @@ class PantallaPrincipal extends StatelessWidget {
         ),
         child: LayoutBuilder(
           builder: (context, pantalla) {
-            final esTablet = pantalla.maxWidth >= 600;
+            final esTablet =
+                pantalla.maxWidth >= 600;
 
             return Center(
               child: ConstrainedBox(
@@ -377,7 +421,9 @@ class PantallaPrincipal extends StatelessWidget {
                   maxWidth: 1100,
                 ),
                 child: ListView(
-                  padding: EdgeInsets.all(esTablet ? 28 : 18),
+                  padding: EdgeInsets.all(
+                    esTablet ? 28 : 18,
+                  ),
                   children: [
                     const SizedBox(height: 4),
 
@@ -394,16 +440,22 @@ class PantallaPrincipal extends StatelessWidget {
 
                     Center(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
+                        padding:
+                        const EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.65),
-                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.black.withValues(
+                            alpha: 0.65,
+                          ),
+                          borderRadius:
+                          BorderRadius.circular(12),
                         ),
                         child: const Text(
-                          'Administra equipos, registra partidos y prepara tus cédulas digitales.',
+                          'Administra equipos, registra '
+                              'partidos y prepara tus '
+                              'cédulas digitales.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white,
@@ -417,11 +469,17 @@ class PantallaPrincipal extends StatelessWidget {
 
                     const SizedBox(height: 30),
 
+                    // ==================================
+                    // MENÚ PRINCIPAL
+                    // ==================================
+
                     LayoutBuilder(
                       builder: (context, espacio) {
-                        final ancho = espacio.maxWidth;
+                        final ancho =
+                            espacio.maxWidth;
 
                         int columnas;
+
                         if (ancho >= 940) {
                           columnas = 3;
                         } else if (ancho >= 560) {
@@ -433,7 +491,10 @@ class PantallaPrincipal extends StatelessWidget {
                         const separacion = 14.0;
 
                         final anchoBoton =
-                            (ancho - (columnas - 1) * separacion) / columnas;
+                            (ancho -
+                                (columnas - 1) *
+                                    separacion) /
+                                columnas;
 
                         return Wrap(
                           spacing: separacion,
@@ -447,6 +508,16 @@ class PantallaPrincipal extends StatelessWidget {
                               anchoBoton,
                               dorado: true,
                             ),
+
+                            crearBoton(
+                              context,
+                              'AGREGAR CATEGORÍA',
+                              Icons.emoji_events,
+                              const Color(0xFFFFD36B),
+                              anchoBoton,
+                              dorado: true,
+                            ),
+
                             crearBoton(
                               context,
                               'EDITAR EQUIPO',
@@ -454,14 +525,21 @@ class PantallaPrincipal extends StatelessWidget {
                               const Color(0xFFDCE1E8),
                               anchoBoton,
                             ),
+
+                            // ==================================
+                            // ANTES: CARGAR EQUIPO
+                            // AHORA: EQUIPOS GUARDADOS
+                            // ==================================
+
                             crearBoton(
                               context,
-                              'CARGAR EQUIPO',
+                              'EQUIPOS GUARDADOS',
                               Icons.folder_open,
                               const Color(0xFFE7B55A),
                               anchoBoton,
                               dorado: true,
                             ),
+
                             crearBoton(
                               context,
                               'CREAR NUEVA CÉDULA',
@@ -469,6 +547,7 @@ class PantallaPrincipal extends StatelessWidget {
                               const Color(0xFFF47E70),
                               anchoBoton,
                             ),
+
                             crearBoton(
                               context,
                               'HISTORIAL',
@@ -487,11 +566,15 @@ class PantallaPrincipal extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.55),
-                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.black.withValues(
+                            alpha: 0.55,
+                          ),
+                          borderRadius:
+                          BorderRadius.circular(8),
                         ),
                         child: const Text(
-                          'Cédula Fútbol 7 · Versión de desarrollo',
+                          'Cédula Fútbol 7 · '
+                              'Versión de desarrollo',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white70,

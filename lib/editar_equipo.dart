@@ -7,8 +7,248 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'arena_estilo.dart';
 
 // ==========================================
-// PANTALLA EDITAR EQUIPO
-// ARENA MOUSTACHE
+// EDITAR EQUIPO - ARENA MOUSTACHE
+// FILTROS Y MODIFICACIÓN DE CATEGORÍA
+// ==========================================
+
+const String _claveCategorias = 'torneos_categorias';
+const String _sinAsignar = '__equipo_sin_asignar__';
+
+String _normalizar(String texto) {
+  return texto
+      .trim()
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .toLowerCase();
+}
+
+String _texto(dynamic valor) {
+  return valor?.toString().trim() ?? '';
+}
+
+List<Map<String, dynamic>> _leerRegistros(String? datos) {
+  return (jsonDecode(datos ?? '[]') as List)
+      .map(
+        (item) => Map<String, dynamic>.from(
+      item as Map,
+    ),
+  )
+      .toList();
+}
+
+bool _tieneClasificacion(Map<String, dynamic> equipo) {
+  return _texto(equipo['torneo']).isNotEmpty &&
+      _texto(equipo['categoria']).isNotEmpty;
+}
+
+// ==========================================
+// OBTENER TORNEOS REGISTRADOS
+// ==========================================
+
+List<String> _obtenerTorneos(
+    List<Map<String, dynamic>> categorias,
+    List<Map<String, dynamic>> equipos,
+    ) {
+  final unicos = <String, String>{};
+
+  for (final registro in categorias) {
+    final torneo = _texto(registro['torneo']);
+
+    if (torneo.isNotEmpty) {
+      unicos.putIfAbsent(
+        _normalizar(torneo),
+            () => torneo,
+      );
+    }
+  }
+
+  for (final equipo in equipos) {
+    if (!_tieneClasificacion(equipo)) continue;
+
+    final torneo = _texto(equipo['torneo']);
+
+    unicos.putIfAbsent(
+      _normalizar(torneo),
+          () => torneo,
+    );
+  }
+
+  final lista = unicos.values.toList()
+    ..sort(
+          (a, b) => _normalizar(a).compareTo(
+        _normalizar(b),
+      ),
+    );
+
+  if (equipos.any(
+        (equipo) => !_tieneClasificacion(equipo),
+  )) {
+    lista.add(_sinAsignar);
+  }
+
+  return lista;
+}
+
+// ==========================================
+// OBTENER CATEGORÍAS SEGÚN TORNEO
+// ==========================================
+
+List<String> _obtenerCategorias(
+    String? torneo,
+    List<Map<String, dynamic>> categorias,
+    List<Map<String, dynamic>> equipos,
+    ) {
+  if (torneo == null) return [];
+
+  if (torneo == _sinAsignar) {
+    return [_sinAsignar];
+  }
+
+  final unicas = <String, String>{};
+
+  for (final registro in categorias) {
+    if (_normalizar(_texto(registro['torneo'])) !=
+        _normalizar(torneo)) {
+      continue;
+    }
+
+    final categoria = _texto(registro['categoria']);
+
+    if (categoria.isNotEmpty) {
+      unicas.putIfAbsent(
+        _normalizar(categoria),
+            () => categoria,
+      );
+    }
+  }
+
+  for (final equipo in equipos) {
+    if (!_tieneClasificacion(equipo)) continue;
+
+    if (_normalizar(_texto(equipo['torneo'])) !=
+        _normalizar(torneo)) {
+      continue;
+    }
+
+    final categoria = _texto(equipo['categoria']);
+
+    unicas.putIfAbsent(
+      _normalizar(categoria),
+          () => categoria,
+    );
+  }
+
+  return unicas.values.toList()
+    ..sort(
+          (a, b) => _normalizar(a).compareTo(
+        _normalizar(b),
+      ),
+    );
+}
+
+// ==========================================
+// DISEÑO COMPARTIDO DE SELECTORES
+// ==========================================
+
+InputDecoration _decoracionSelector({
+  required String titulo,
+  required IconData icono,
+}) {
+  return InputDecoration(
+    labelText: titulo,
+    floatingLabelBehavior:
+    FloatingLabelBehavior.always,
+    labelStyle: const TextStyle(
+      color: ArenaColores.negro,
+      fontSize: 14,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 0.5,
+    ),
+    floatingLabelStyle: const TextStyle(
+      color: ArenaColores.negro,
+      fontSize: 14,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 0.5,
+    ),
+    prefixIcon: Icon(
+      icono,
+      color: ArenaColores.rojo,
+      size: 21,
+    ),
+    filled: true,
+    fillColor: Colors.white,
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: 12,
+      vertical: 16,
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(
+        color: Color(0xFFD9B48F),
+      ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(
+        color: ArenaColores.rojo,
+        width: 1.5,
+      ),
+    ),
+    disabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(
+        color: Color(0xFFBDBDBD),
+      ),
+    ),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+  );
+}
+
+Widget _selector({
+  Key? key,
+  required String titulo,
+  required IconData icono,
+  required String ayuda,
+  required String? valor,
+  required List<DropdownMenuItem<String>> opciones,
+  required ValueChanged<String?>? onChanged,
+}) {
+  return DropdownButtonFormField<String>(
+    key: key,
+    initialValue: valor,
+    isExpanded: true,
+    decoration: _decoracionSelector(
+      titulo: titulo,
+      icono: icono,
+    ),
+    hint: Text(
+      ayuda,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        fontSize: 13,
+        color: Color(0xFF666666),
+      ),
+    ),
+    style: const TextStyle(
+      color: ArenaColores.negro,
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+    ),
+    items: opciones,
+    onChanged: onChanged,
+  );
+}
+
+String _etiqueta(String valor) {
+  return valor == _sinAsignar
+      ? 'SIN ASIGNAR'
+      : valor;
+}
+
+// ==========================================
+// PANTALLA 1 - EDITAR EQUIPO
 // ==========================================
 
 class EditarEquipo extends StatefulWidget {
@@ -21,6 +261,10 @@ class EditarEquipo extends StatefulWidget {
 
 class _EditarEquipoState extends State<EditarEquipo> {
   List<Map<String, dynamic>> equipos = [];
+  List<Map<String, dynamic>> categorias = [];
+
+  String? torneoSeleccionado;
+  String? categoriaSeleccionada;
 
   bool cargando = true;
   String? error;
@@ -28,14 +272,24 @@ class _EditarEquipoState extends State<EditarEquipo> {
   @override
   void initState() {
     super.initState();
-    cargarEquipos();
+    cargarDatos();
   }
 
   // ==========================================
-  // CARGAR EQUIPOS GUARDADOS
+  // CARGAR EQUIPOS Y CATEGORÍAS
   // ==========================================
 
-  Future<void> cargarEquipos() async {
+  Future<void> cargarDatos({
+    bool conservarFiltros = false,
+  }) async {
+    if (!mounted) return;
+
+    final torneoAnterior =
+    conservarFiltros ? torneoSeleccionado : null;
+
+    final categoriaAnterior =
+    conservarFiltros ? categoriaSeleccionada : null;
+
     setState(() {
       cargando = true;
       error = null;
@@ -44,28 +298,67 @@ class _EditarEquipoState extends State<EditarEquipo> {
     try {
       final prefs = SharedPreferencesAsync();
 
-      final datos = await prefs.getString('equipos');
+      final datosEquipos =
+      await prefs.getString('equipos');
 
-      final lista = (jsonDecode(datos ?? '[]') as List)
-          .map(
-            (e) => Map<String, dynamic>.from(e as Map),
-      )
-          .toList();
+      final datosCategorias =
+      await prefs.getString(_claveCategorias);
+
+      final equiposCargados =
+      _leerRegistros(datosEquipos);
+
+      final categoriasCargadas =
+      _leerRegistros(datosCategorias);
 
       if (!mounted) return;
 
       setState(() {
-        equipos = lista;
+        equipos = equiposCargados;
+        categorias = categoriasCargadas;
+
+        torneoSeleccionado = torneoAnterior;
+        categoriaSeleccionada = categoriaAnterior;
+
         cargando = false;
       });
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
-        error = 'No se pudieron cargar los equipos: $e';
         cargando = false;
+        error = 'No se pudieron cargar los equipos: $e';
       });
     }
+  }
+
+  // ==========================================
+  // EQUIPOS FILTRADOS
+  // ==========================================
+
+  List<Map<String, dynamic>> get equiposFiltrados {
+    if (torneoSeleccionado == null ||
+        categoriaSeleccionada == null) {
+      return [];
+    }
+
+    final lista = equipos.where((equipo) {
+      if (torneoSeleccionado == _sinAsignar) {
+        return !_tieneClasificacion(equipo);
+      }
+
+      return _normalizar(_texto(equipo['torneo'])) ==
+          _normalizar(torneoSeleccionado!) &&
+          _normalizar(_texto(equipo['categoria'])) ==
+              _normalizar(categoriaSeleccionada!);
+    }).toList();
+
+    lista.sort((a, b) {
+      return _normalizar(_texto(a['nombre'])).compareTo(
+        _normalizar(_texto(b['nombre'])),
+      );
+    });
+
+    return lista;
   }
 
   // ==========================================
@@ -87,7 +380,7 @@ class _EditarEquipoState extends State<EditarEquipo> {
     if (!mounted) return;
 
     if (actualizado == true) {
-      await cargarEquipos();
+      await cargarDatos(conservarFiltros: true);
 
       if (!mounted) return;
 
@@ -104,7 +397,7 @@ class _EditarEquipoState extends State<EditarEquipo> {
   }
 
   // ==========================================
-  // ENCABEZADO DE LA LISTA DE EQUIPOS
+  // ENCABEZADO
   // ==========================================
 
   Widget crearEncabezado() {
@@ -115,17 +408,13 @@ class _EditarEquipoState extends State<EditarEquipo> {
           size: 55,
           color: ArenaColores.dorado,
         ),
-
         const SizedBox(height: 12),
-
         const ArenaTextoMetalico(
           texto: 'EQUIPOS REGISTRADOS',
           tamano: 25,
           dorado: true,
         ),
-
         const SizedBox(height: 12),
-
         Container(
           padding: const EdgeInsets.symmetric(
             horizontal: 18,
@@ -139,7 +428,8 @@ class _EditarEquipoState extends State<EditarEquipo> {
             ),
           ),
           child: const Text(
-            'Selecciona el equipo que deseas modificar.',
+            'Selecciona un torneo, una categoría '
+                'y el equipo que deseas modificar.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white,
@@ -153,17 +443,153 @@ class _EditarEquipoState extends State<EditarEquipo> {
   }
 
   // ==========================================
-  // TARJETA PARA CADA EQUIPO REGISTRADO
+  // SELECTORES DE LA PRIMERA PANTALLA
+  // ==========================================
+
+  Widget crearFiltros() {
+    final torneos = _obtenerTorneos(
+      categorias,
+      equipos,
+    );
+
+    final categoriasDisponibles =
+    _obtenerCategorias(
+      torneoSeleccionado,
+      categorias,
+      equipos,
+    );
+
+    return ArenaPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.filter_list,
+                color: ArenaColores.rojo,
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'TORNEO Y CATEGORÍA',
+                  style: TextStyle(
+                    color: ArenaColores.negro,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 23),
+          LayoutBuilder(
+            builder: (context, espacio) {
+              final selectorDeTorneo = _selector(
+                titulo: 'TORNEO *',
+                icono: Icons.emoji_events,
+                ayuda: 'Selecciona torneo',
+                valor: torneoSeleccionado,
+                opciones: torneos.map((torneo) {
+                  return DropdownMenuItem<String>(
+                    value: torneo,
+                    child: Text(
+                      _etiqueta(torneo),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                onChanged: (valor) {
+                  setState(() {
+                    torneoSeleccionado = valor;
+                    categoriaSeleccionada = null;
+                  });
+                },
+              );
+
+              final selectorDeCategoria = _selector(
+                key: ValueKey(
+                  'filtro_${torneoSeleccionado ?? "ninguno"}',
+                ),
+                titulo: 'CATEGORÍA *',
+                icono: Icons.groups_rounded,
+                ayuda: 'Selecciona categoría',
+                valor: categoriaSeleccionada,
+                opciones: categoriasDisponibles.map(
+                      (categoria) {
+                    return DropdownMenuItem<String>(
+                      value: categoria,
+                      child: Text(
+                        _etiqueta(categoria),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  },
+                ).toList(),
+                onChanged: torneoSeleccionado == null
+                    ? null
+                    : (valor) {
+                  setState(() {
+                    categoriaSeleccionada = valor;
+                  });
+                },
+              );
+
+              if (espacio.maxWidth >= 600) {
+                return Row(
+                  children: [
+                    Expanded(child: selectorDeTorneo),
+                    const SizedBox(width: 14),
+                    Expanded(child: selectorDeCategoria),
+                  ],
+                );
+              }
+
+              return Column(
+                children: [
+                  selectorDeTorneo,
+                  const SizedBox(height: 18),
+                  selectorDeCategoria,
+                ],
+              );
+            },
+          ),
+          if (equipos.any(
+                (equipo) => !_tieneClasificacion(equipo),
+          )) ...[
+            const SizedBox(height: 13),
+            const Text(
+              'Los equipos antiguos sin categoría '
+                  'aparecen en SIN ASIGNAR.',
+              style: TextStyle(
+                color: Color(0xFF655C54),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // TARJETA DE EQUIPO
   // ==========================================
 
   Widget crearTarjetaEquipo(
       Map<String, dynamic> equipo,
       ) {
     final nombre =
-        equipo['nombre']?.toString() ?? 'Sin nombre';
+    _texto(equipo['nombre']).isEmpty
+        ? 'Sin nombre'
+        : _texto(equipo['nombre']);
 
-    final totalJugadores =
-        (equipo['jugadores'] as List?)?.length ?? 0;
+    final jugadores =
+        (equipo['jugadores'] as List?) ?? [];
+
+    final torneo = _texto(equipo['torneo']);
+    final categoria = _texto(equipo['categoria']);
 
     return Card(
       color: Colors.white,
@@ -173,15 +599,13 @@ class _EditarEquipoState extends State<EditarEquipo> {
         borderRadius: BorderRadius.circular(12),
         side: const BorderSide(
           color: Color(0xFFE4C5A6),
-          width: 1,
         ),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
-          vertical: 9,
+          vertical: 10,
         ),
-
         leading: Container(
           width: 48,
           height: 48,
@@ -198,7 +622,6 @@ class _EditarEquipoState extends State<EditarEquipo> {
             size: 27,
           ),
         ),
-
         title: Text(
           nombre,
           maxLines: 2,
@@ -207,34 +630,94 @@ class _EditarEquipoState extends State<EditarEquipo> {
             color: ArenaColores.negro,
             fontWeight: FontWeight.w900,
             fontSize: 16,
-            letterSpacing: 0.3,
           ),
         ),
-
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 5),
           child: Text(
-            '$totalJugadores de 20 jugadores',
+            '${jugadores.length} de 20 jugadores\n'
+                '${torneo.isEmpty ? "Sin torneo" : torneo}'
+                ' · '
+                '${categoria.isEmpty ? "Sin categoría" : categoria}',
             style: const TextStyle(
               color: Color(0xFF655C54),
-              fontSize: 13,
+              fontSize: 12,
             ),
           ),
         ),
-
         trailing: const Icon(
           Icons.edit,
           color: ArenaColores.rojo,
           size: 25,
         ),
-
         onTap: () => abrirFormulario(equipo),
       ),
     );
   }
 
   // ==========================================
-  // CONTENIDO DE LA PANTALLA
+  // LISTA DE EQUIPOS
+  // ==========================================
+
+  Widget crearListaEquipos() {
+    final lista = equiposFiltrados;
+
+    return ArenaPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.folder_open,
+                color: ArenaColores.rojo,
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'MIS EQUIPOS',
+                  style: TextStyle(
+                    color: ArenaColores.negro,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+              Text(
+                '${lista.length}',
+                style: const TextStyle(
+                  color: ArenaColores.rojo,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 20,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          if (lista.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 22),
+              child: Text(
+                'No hay equipos registrados '
+                    'en esta combinación.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: ArenaColores.negro,
+                  fontSize: 14,
+                ),
+              ),
+            )
+          else
+            for (final equipo in lista)
+              crearTarjetaEquipo(equipo),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // PANTALLA DE SELECCIÓN
   // ==========================================
 
   Widget crearContenido() {
@@ -249,33 +732,22 @@ class _EditarEquipoState extends State<EditarEquipo> {
     if (error != null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 550,
-            ),
-            child: ArenaPanel(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    color: ArenaColores.rojo,
-                    size: 45,
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  Text(
-                    error!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: ArenaColores.negro,
-                      fontSize: 15,
-                    ),
-                  ),
-                ],
-              ),
+          padding: const EdgeInsets.all(18),
+          child: ArenaPanel(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  error!,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: cargarDatos,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('REINTENTAR'),
+                ),
+              ],
             ),
           ),
         ),
@@ -291,76 +763,33 @@ class _EditarEquipoState extends State<EditarEquipo> {
           padding: const EdgeInsets.all(18),
           children: [
             const SizedBox(height: 14),
-
             crearEncabezado(),
-
             const SizedBox(height: 26),
-
-            ArenaPanel(
-              child: Column(
-                crossAxisAlignment:
-                CrossAxisAlignment.stretch,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.folder_open,
-                        color: ArenaColores.rojo,
-                        size: 25,
-                      ),
-
-                      SizedBox(width: 10),
-
-                      Expanded(
-                        child: Text(
-                          'MIS EQUIPOS',
-                          style: TextStyle(
-                            color: ArenaColores.negro,
-                            fontSize: 19,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ),
-                    ],
+            crearFiltros(),
+            const SizedBox(height: 18),
+            if (equipos.isEmpty)
+              const ArenaPanel(
+                child: Text(
+                  'Todavía no hay equipos registrados.',
+                  textAlign: TextAlign.center,
+                ),
+              )
+            else if (torneoSeleccionado == null)
+              const ArenaPanel(
+                child: Text(
+                  'Selecciona un torneo para comenzar.',
+                  textAlign: TextAlign.center,
+                ),
+              )
+            else if (categoriaSeleccionada == null)
+                const ArenaPanel(
+                  child: Text(
+                    'Ahora selecciona una categoría.',
+                    textAlign: TextAlign.center,
                   ),
-
-                  const SizedBox(height: 18),
-
-                  if (equipos.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(
-                        vertical: 35,
-                      ),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.groups,
-                            color: ArenaColores.rojo,
-                            size: 48,
-                          ),
-
-                          SizedBox(height: 14),
-
-                          Text(
-                            'Todavía no hay equipos '
-                                'registrados.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: ArenaColores.negro,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    for (final equipo in equipos)
-                      crearTarjetaEquipo(equipo),
-                ],
-              ),
-            ),
-
+                )
+              else
+                crearListaEquipos(),
             const SizedBox(height: 35),
           ],
         ),
@@ -368,17 +797,12 @@ class _EditarEquipoState extends State<EditarEquipo> {
     );
   }
 
-  // ==========================================
-  // VISTA PRINCIPAL EDITAR EQUIPO
-  // ==========================================
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const ArenaBarraSuperior(
         titulo: 'EDITAR EQUIPO',
       ),
-
       body: ArenaFondo(
         child: crearContenido(),
       ),
@@ -387,7 +811,7 @@ class _EditarEquipoState extends State<EditarEquipo> {
 }
 
 // ==========================================
-// FORMULARIO MODIFICAR EQUIPO
+// PANTALLA 2 - MODIFICAR EQUIPO
 // ==========================================
 
 class FormularioEditarEquipo extends StatefulWidget {
@@ -408,22 +832,26 @@ class _FormularioEditarEquipoState
   static const int maxJugadores = 20;
 
   late final TextEditingController nombreEquipo;
-
   late final List<TextEditingController> numeros;
   late final List<TextEditingController> nombres;
 
+  List<Map<String, dynamic>> categoriasRegistradas = [];
+
+  String? torneoSeleccionado;
+  String? categoriaIdSeleccionada;
+
+  bool cargandoCategorias = true;
+  bool clasificacionModificada = false;
   bool guardando = false;
 
-  // ==========================================
-  // CARGAR DATOS DEL EQUIPO
-  // ==========================================
+  String? errorCategorias;
 
   @override
   void initState() {
     super.initState();
 
     nombreEquipo = TextEditingController(
-      text: widget.equipo['nombre'].toString(),
+      text: _texto(widget.equipo['nombre']),
     );
 
     numeros = List.generate(
@@ -445,10 +873,101 @@ class _FormularioEditarEquipoState
       final jugador = jugadores[i] as Map;
 
       numeros[i].text =
-          jugador['numero']?.toString() ?? '';
+          _texto(jugador['numero']);
 
       nombres[i].text =
-          jugador['nombre']?.toString() ?? '';
+          _texto(jugador['nombre']);
+    }
+
+    cargarCategorias();
+  }
+
+  // ==========================================
+  // CARGAR CLASIFICACIÓN ACTUAL
+  // ==========================================
+
+  Future<void> cargarCategorias() async {
+    if (!mounted) return;
+
+    setState(() {
+      cargandoCategorias = true;
+      errorCategorias = null;
+    });
+
+    try {
+      final prefs = SharedPreferencesAsync();
+
+      final datos =
+      await prefs.getString(_claveCategorias);
+
+      final registros = _leerRegistros(datos);
+
+      final torneoActual =
+      _texto(widget.equipo['torneo']);
+
+      final categoriaActual =
+      _texto(widget.equipo['categoria']);
+
+      final idActual =
+      _texto(widget.equipo['categoriaId']);
+
+      String? torneoEncontrado;
+      String? categoriaEncontrada;
+
+      for (final registro in registros) {
+        final torneo = _texto(registro['torneo']);
+
+        if (_normalizar(torneo) ==
+            _normalizar(torneoActual)) {
+          torneoEncontrado = torneo;
+          break;
+        }
+      }
+
+      if (torneoEncontrado != null) {
+        for (final registro in registros) {
+          final torneo = _texto(registro['torneo']);
+          final categoria =
+          _texto(registro['categoria']);
+          final id = _texto(registro['id']);
+
+          if (_normalizar(torneo) !=
+              _normalizar(torneoEncontrado)) {
+            continue;
+          }
+
+          final coincideId =
+              idActual.isNotEmpty && id == idActual;
+
+          final coincideNombre =
+              _normalizar(categoria) ==
+                  _normalizar(categoriaActual);
+
+          if (coincideId || coincideNombre) {
+            categoriaEncontrada = id;
+            break;
+          }
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        categoriasRegistradas = registros;
+        torneoSeleccionado = torneoEncontrado;
+        categoriaIdSeleccionada = categoriaEncontrada;
+
+        clasificacionModificada = false;
+        cargandoCategorias = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        cargandoCategorias = false;
+        errorCategorias =
+        'No se pudieron cargar las categorías: $e';
+      });
     }
   }
 
@@ -469,7 +988,142 @@ class _FormularioEditarEquipoState
   }
 
   // ==========================================
-  // VALIDAR Y OBTENER JUGADORES
+  // CAMBIAR TORNEO
+  // ==========================================
+
+  void cambiarTorneo(String? valor) {
+    setState(() {
+      torneoSeleccionado = valor;
+      categoriaIdSeleccionada = null;
+      clasificacionModificada = true;
+    });
+  }
+
+  // ==========================================
+  // CATEGORÍAS REGISTRADAS DEL TORNEO
+  // ==========================================
+
+  List<Map<String, dynamic>> get categoriasDelTorneo {
+    if (torneoSeleccionado == null) return [];
+
+    final lista = categoriasRegistradas.where(
+          (registro) {
+        return _normalizar(
+          _texto(registro['torneo']),
+        ) ==
+            _normalizar(torneoSeleccionado!);
+      },
+    ).toList();
+
+    lista.sort((a, b) {
+      return _normalizar(
+        _texto(a['categoria']),
+      ).compareTo(
+        _normalizar(_texto(b['categoria'])),
+      );
+    });
+
+    return lista;
+  }
+
+  // ==========================================
+  // SELECTORES EN EL FORMULARIO
+  // ==========================================
+
+  Widget crearSelectoresEdicion() {
+    final torneos = _obtenerTorneos(
+      categoriasRegistradas,
+      [],
+    );
+
+    final selectorTorneo = _selector(
+      titulo: 'TORNEO',
+      icono: Icons.emoji_events,
+      ayuda: 'Selecciona torneo',
+      valor: torneoSeleccionado,
+      opciones: torneos.map((torneo) {
+        return DropdownMenuItem<String>(
+          value: torneo,
+          child: Text(
+            torneo,
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      }).toList(),
+      onChanged: cargandoCategorias || guardando
+          ? null
+          : cambiarTorneo,
+    );
+
+    final selectorCategoria = _selector(
+      key: ValueKey(
+        'editar_categoria_${torneoSeleccionado ?? "ninguno"}',
+      ),
+      titulo: 'CATEGORÍA',
+      icono: Icons.groups_rounded,
+      ayuda: 'Selecciona categoría',
+      valor: categoriaIdSeleccionada,
+      opciones: categoriasDelTorneo.map((registro) {
+        return DropdownMenuItem<String>(
+          value: _texto(registro['id']),
+          child: Text(
+            _texto(registro['categoria']),
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      }).toList(),
+      onChanged: cargandoCategorias ||
+          guardando ||
+          torneoSeleccionado == null
+          ? null
+          : (valor) {
+        setState(() {
+          categoriaIdSeleccionada = valor;
+          clasificacionModificada = true;
+        });
+      },
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LayoutBuilder(
+          builder: (context, espacio) {
+            if (espacio.maxWidth >= 600) {
+              return Row(
+                children: [
+                  Expanded(child: selectorTorneo),
+                  const SizedBox(width: 14),
+                  Expanded(child: selectorCategoria),
+                ],
+              );
+            }
+
+            return Column(
+              children: [
+                selectorTorneo,
+                const SizedBox(height: 18),
+                selectorCategoria,
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Puedes conservar el torneo y la categoría '
+              'actuales. Solo cambia estos campos si lo '
+              'necesitas.',
+          style: TextStyle(
+            color: Color(0xFF655C54),
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================
+  // VALIDAR JUGADORES
   // ==========================================
 
   List<Map<String, dynamic>>? obtenerJugadores() {
@@ -488,8 +1142,7 @@ class _FormularioEditarEquipoState
       if (numeroTexto.isEmpty ||
           nombreTexto.isEmpty) {
         mostrarMensaje(
-          'Completa los datos del '
-              'jugador ${i + 1}',
+          'Completa los datos del jugador ${i + 1}',
         );
         return null;
       }
@@ -536,20 +1189,28 @@ class _FormularioEditarEquipoState
   // ==========================================
 
   Future<void> guardarCambios() async {
-    if (guardando) return;
+    if (guardando || cargandoCategorias) return;
 
     final nombre = nombreEquipo.text.trim();
 
     if (nombre.isEmpty) {
-      mostrarMensaje(
-        'Escribe el nombre del equipo',
-      );
+      mostrarMensaje('Escribe el nombre del equipo');
       return;
     }
 
     final jugadores = obtenerJugadores();
 
     if (jugadores == null) return;
+
+    if (clasificacionModificada &&
+        (torneoSeleccionado == null ||
+            categoriaIdSeleccionada == null)) {
+      mostrarMensaje(
+        'Selecciona el torneo y la categoría '
+            'para completar el cambio.',
+      );
+      return;
+    }
 
     setState(() {
       guardando = true;
@@ -558,36 +1219,16 @@ class _FormularioEditarEquipoState
     try {
       final prefs = SharedPreferencesAsync();
 
-      final datos = await prefs.getString('equipos');
-
-      final equipos = (jsonDecode(datos ?? '[]') as List)
-          .map(
-            (e) => Map<String, dynamic>.from(e as Map),
-      )
-          .toList();
-
-      final idActual = widget.equipo['id'].toString();
-
-      final repetido = equipos.any(
-            (equipo) =>
-        equipo['id'].toString() != idActual &&
-            equipo['nombre']
-                .toString()
-                .trim()
-                .toLowerCase() ==
-                nombre.toLowerCase(),
+      final equipos = _leerRegistros(
+        await prefs.getString('equipos'),
       );
 
-      if (repetido) {
-        mostrarMensaje(
-          'Ya existe otro equipo con ese nombre',
-        );
-        return;
-      }
+      final idActual =
+      _texto(widget.equipo['id']);
 
       final indice = equipos.indexWhere(
             (equipo) =>
-        equipo['id'].toString() == idActual,
+        _texto(equipo['id']) == idActual,
       );
 
       if (indice == -1) {
@@ -597,12 +1238,84 @@ class _FormularioEditarEquipoState
         return;
       }
 
-      equipos[indice] = {
+      String torneoFinal =
+      _texto(equipos[indice]['torneo']);
+
+      String categoriaFinal =
+      _texto(equipos[indice]['categoria']);
+
+      String categoriaIdFinal =
+      _texto(equipos[indice]['categoriaId']);
+
+      // Solo actualizar el torneo y la categoría
+      // si el usuario decidió modificarlos.
+      if (clasificacionModificada) {
+        final registros = _leerRegistros(
+          await prefs.getString(_claveCategorias),
+        );
+
+        Map<String, dynamic>? seleccion;
+
+        for (final registro in registros) {
+          if (_texto(registro['id']) ==
+              categoriaIdSeleccionada &&
+              _normalizar(_texto(registro['torneo'])) ==
+                  _normalizar(torneoSeleccionado!)) {
+            seleccion = registro;
+            break;
+          }
+        }
+
+        if (seleccion == null) {
+          mostrarMensaje(
+            'La categoría seleccionada '
+                'ya no está disponible.',
+          );
+          return;
+        }
+
+        torneoFinal = _texto(seleccion['torneo']);
+        categoriaFinal = _texto(seleccion['categoria']);
+        categoriaIdFinal = _texto(seleccion['id']);
+      }
+
+      // Mismo nombre permitido en otras
+      // categorías o torneos.
+      final repetido = equipos.any((equipo) {
+        if (_texto(equipo['id']) == idActual) {
+          return false;
+        }
+
+        return _normalizar(_texto(equipo['nombre'])) ==
+            _normalizar(nombre) &&
+            _normalizar(_texto(equipo['torneo'])) ==
+                _normalizar(torneoFinal) &&
+            _normalizar(_texto(equipo['categoria'])) ==
+                _normalizar(categoriaFinal);
+      });
+
+      if (repetido) {
+        mostrarMensaje(
+          'Ya existe un equipo con ese nombre '
+              'en el mismo torneo y categoría.',
+        );
+        return;
+      }
+
+      final actualizado = <String, dynamic>{
         ...equipos[indice],
         'id': idActual,
         'nombre': nombre,
         'jugadores': jugadores,
       };
+
+      if (clasificacionModificada) {
+        actualizado['torneo'] = torneoFinal;
+        actualizado['categoria'] = categoriaFinal;
+        actualizado['categoriaId'] = categoriaIdFinal;
+      }
+
+      equipos[indice] = actualizado;
 
       await prefs.setString(
         'equipos',
@@ -626,7 +1339,7 @@ class _FormularioEditarEquipoState
   }
 
   // ==========================================
-  // TARJETAS DE JUGADORES
+  // TARJETA DE JUGADOR
   // ==========================================
 
   Widget crearCampoJugador(int indice) {
@@ -638,14 +1351,12 @@ class _FormularioEditarEquipoState
         borderRadius: BorderRadius.circular(12),
         side: const BorderSide(
           color: Color(0xFFE4C5A6),
-          width: 1,
         ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -654,9 +1365,7 @@ class _FormularioEditarEquipoState
                   color: ArenaColores.rojo,
                   size: 20,
                 ),
-
                 const SizedBox(width: 8),
-
                 Text(
                   'JUGADOR ${indice + 1}',
                   style: const TextStyle(
@@ -668,9 +1377,7 @@ class _FormularioEditarEquipoState
                 ),
               ],
             ),
-
             const SizedBox(height: 12),
-
             Row(
               children: [
                 SizedBox(
@@ -681,9 +1388,8 @@ class _FormularioEditarEquipoState
                     decoration: InputDecoration(
                       labelText: 'N.º',
                       filled: true,
-                      fillColor: const Color(
-                        0xFFF8F7F5,
-                      ),
+                      fillColor:
+                      const Color(0xFFF8F7F5),
                       border: OutlineInputBorder(
                         borderRadius:
                         BorderRadius.circular(9),
@@ -691,9 +1397,7 @@ class _FormularioEditarEquipoState
                     ),
                   ),
                 ),
-
                 const SizedBox(width: 10),
-
                 Expanded(
                   child: TextField(
                     controller: nombres[indice],
@@ -702,9 +1406,8 @@ class _FormularioEditarEquipoState
                     decoration: InputDecoration(
                       labelText: 'Nombre del jugador',
                       filled: true,
-                      fillColor: const Color(
-                        0xFFF8F7F5,
-                      ),
+                      fillColor:
+                      const Color(0xFFF8F7F5),
                       border: OutlineInputBorder(
                         borderRadius:
                         BorderRadius.circular(9),
@@ -732,17 +1435,13 @@ class _FormularioEditarEquipoState
           color: ArenaColores.dorado,
           size: 55,
         ),
-
         const SizedBox(height: 12),
-
         const ArenaTextoMetalico(
           texto: 'EDITAR PLANTILLA',
           tamano: 25,
           dorado: true,
         ),
-
         const SizedBox(height: 12),
-
         Container(
           padding: const EdgeInsets.symmetric(
             horizontal: 18,
@@ -756,8 +1455,9 @@ class _FormularioEditarEquipoState
             ),
           ),
           child: const Text(
-            'Puedes modificar nombres, números '
-                'y añadir jugadores hasta completar 20.',
+            'Modifica el nombre o los jugadores. '
+                'También puedes cambiar el torneo '
+                'y la categoría si lo necesitas.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white,
@@ -771,14 +1471,19 @@ class _FormularioEditarEquipoState
   }
 
   // ==========================================
-  // FORMULARIO DE EDICIÓN
+  // FORMULARIO DE MODIFICACIÓN
   // ==========================================
 
   Widget crearFormulario() {
+    final torneoOriginal =
+    _texto(widget.equipo['torneo']);
+
+    final categoriaOriginal =
+    _texto(widget.equipo['categoria']);
+
     return ArenaPanel(
       child: Column(
-        crossAxisAlignment:
-        CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Row(
             children: [
@@ -786,9 +1491,7 @@ class _FormularioEditarEquipoState
                 Icons.shield,
                 color: ArenaColores.rojo,
               ),
-
               SizedBox(width: 10),
-
               Expanded(
                 child: Text(
                   'DATOS DEL EQUIPO',
@@ -802,7 +1505,6 @@ class _FormularioEditarEquipoState
               ),
             ],
           ),
-
           const SizedBox(height: 18),
 
           TextField(
@@ -818,12 +1520,81 @@ class _FormularioEditarEquipoState
               filled: true,
               fillColor: Colors.white,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius:
+                BorderRadius.circular(12),
               ),
             ),
           ),
 
-          const SizedBox(height: 26),
+          const SizedBox(height: 24),
+
+          const Row(
+            children: [
+              Icon(
+                Icons.emoji_events,
+                color: ArenaColores.rojo,
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'TORNEO Y CATEGORÍA',
+                  style: TextStyle(
+                    color: ArenaColores.negro,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          if (cargandoCategorias)
+            const Center(
+              child: CircularProgressIndicator(
+                color: ArenaColores.rojo,
+              ),
+            )
+          else if (errorCategorias != null)
+            Column(
+              children: [
+                Text(
+                  errorCategorias!,
+                  style: const TextStyle(
+                    color: ArenaColores.rojo,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: cargarCategorias,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('REINTENTAR'),
+                ),
+              ],
+            )
+          else
+            crearSelectoresEdicion(),
+
+          const SizedBox(height: 12),
+
+          if (!clasificacionModificada &&
+              (torneoSeleccionado == null ||
+                  categoriaIdSeleccionada == null))
+            Text(
+              'Clasificación actual: '
+                  '${torneoOriginal.isEmpty ? "Sin torneo" : torneoOriginal}'
+                  ' · '
+                  '${categoriaOriginal.isEmpty ? "Sin categoría" : categoriaOriginal}'
+                  '. Puedes conservarla o asignar '
+                  'una categoría registrada.',
+              style: const TextStyle(
+                color: Color(0xFF655C54),
+                fontSize: 12,
+              ),
+            ),
+
+          const SizedBox(height: 20),
 
           const Divider(
             color: Color(0xFFD9B48F),
@@ -837,9 +1608,7 @@ class _FormularioEditarEquipoState
                 Icons.groups,
                 color: ArenaColores.rojo,
               ),
-
               SizedBox(width: 10),
-
               Expanded(
                 child: Text(
                   'JUGADORES (1-20)',
@@ -856,13 +1625,9 @@ class _FormularioEditarEquipoState
 
           const SizedBox(height: 16),
 
-          // Una columna en celulares y
-          // dos columnas en pantallas grandes.
           LayoutBuilder(
             builder: (context, espacio) {
-              final ancho = espacio.maxWidth;
-
-              if (ancho < 700) {
+              if (espacio.maxWidth < 700) {
                 return Column(
                   children: [
                     for (int i = 0;
@@ -876,7 +1641,7 @@ class _FormularioEditarEquipoState
               const separacion = 14.0;
 
               final anchoTarjeta =
-                  (ancho - separacion) / 2;
+                  (espacio.maxWidth - separacion) / 2;
 
               return Wrap(
                 spacing: separacion,
@@ -900,13 +1665,19 @@ class _FormularioEditarEquipoState
             height: 58,
             child: ElevatedButton.icon(
               onPressed:
-              guardando ? null : guardarCambios,
+              guardando || cargandoCategorias
+                  ? null
+                  : guardarCambios,
               style: ElevatedButton.styleFrom(
-                backgroundColor: ArenaColores.negro,
-                foregroundColor: ArenaColores.dorado,
-                disabledBackgroundColor: Colors.grey,
+                backgroundColor:
+                ArenaColores.negro,
+                foregroundColor:
+                ArenaColores.dorado,
+                disabledBackgroundColor:
+                Colors.grey,
                 elevation: 5,
-                shadowColor: ArenaColores.rojo,
+                shadowColor:
+                ArenaColores.rojo,
                 shape: RoundedRectangleBorder(
                   borderRadius:
                   BorderRadius.circular(12),
@@ -959,7 +1730,7 @@ class _FormularioEditarEquipoState
   }
 
   // ==========================================
-  // VISTA MODIFICAR EQUIPO
+  // PANTALLA DE MODIFICACIÓN
   // ==========================================
 
   @override
@@ -968,7 +1739,6 @@ class _FormularioEditarEquipoState
       appBar: const ArenaBarraSuperior(
         titulo: 'MODIFICAR EQUIPO',
       ),
-
       body: ArenaFondo(
         child: Center(
           child: ConstrainedBox(
@@ -979,13 +1749,9 @@ class _FormularioEditarEquipoState
               padding: const EdgeInsets.all(18),
               children: [
                 const SizedBox(height: 14),
-
                 crearEncabezado(),
-
                 const SizedBox(height: 26),
-
                 crearFormulario(),
-
                 const SizedBox(height: 35),
               ],
             ),

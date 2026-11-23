@@ -65,6 +65,8 @@ flutter:
     - assets/alertas/sexta_falta.png
     - assets/ui/fondo_inicio.png
     - assets/ui/logo_arena_moustache.png
+    - assets/ui/logo_arena.png
+    - assets/ui/logo_arbitros.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
