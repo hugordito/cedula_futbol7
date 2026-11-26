@@ -1,4 +1,3 @@
-
 import 'package:material_ui/material_ui.dart';
 
 import 'agregar_equipo.dart';
@@ -7,6 +6,7 @@ import 'editar_equipo.dart';
 import 'equipos_guardados.dart';
 import 'nueva_cedula.dart';
 import 'historial_cedulas.dart';
+import 'tablas.dart';
 
 // ==========================================
 // APLICACIÓN PRINCIPAL
@@ -159,7 +159,7 @@ class PantallaPrincipal extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Borrador guardado correctamente',
+              'Cédula definitiva guardada correctamente',
             ),
           ),
         );
@@ -170,6 +170,13 @@ class PantallaPrincipal extends StatelessWidget {
         MaterialPageRoute<void>(
           builder: (context) =>
           const HistorialCedulas(),
+        ),
+      );
+    } else if (opcion == 'TABLAS') {
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute<void>(
+          builder: (context) => const Tablas(),
         ),
       );
     }
@@ -554,6 +561,15 @@ class PantallaPrincipal extends StatelessWidget {
                               Icons.history,
                               const Color(0xFFD9C8AF),
                               anchoBoton,
+                            ),
+
+                            crearBoton(
+                              context,
+                              'TABLAS',
+                              Icons.emoji_events,
+                              const Color(0xFFFFD36B),
+                              ancho,
+                              dorado: true,
                             ),
                           ],
                         );

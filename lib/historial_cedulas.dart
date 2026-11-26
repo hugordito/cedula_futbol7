@@ -8,7 +8,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'almacen_tablas.dart';
 
 import 'cedula_tactil.dart';
 import 'arena_estilo.dart';
@@ -55,44 +55,19 @@ class _HistorialCedulasState
 
   Future<void> cargarCedulas() async {
     if (!mounted) return;
-
     setState(() {
       cargando = true;
       error = null;
     });
-
     try {
-      final prefs = SharedPreferencesAsync();
-
-      final texto = await prefs.getString(
-        'cedulas_borrador',
-      );
-
-      final lista = (jsonDecode(texto ?? '[]') as List)
-          .map(
-            (item) => Map<String, dynamic>.from(
-          item as Map,
-        ),
-      )
-          .toList();
-
-      lista.sort(
-            (a, b) => (b['creadaEn'] ?? '')
-            .toString()
-            .compareTo(
-          (a['creadaEn'] ?? '').toString(),
-        ),
-      );
-
+      final lista = await AlmacenTablas.cargarHistorial();
       if (!mounted) return;
-
       setState(() {
         cedulas = lista;
         cargando = false;
       });
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
         cargando = false;
         error = 'No se pudo cargar el historial: $e';
@@ -122,8 +97,8 @@ class _HistorialCedulasState
       builder: (dialogo) => AlertDialog(
         title: const Text('Eliminar cédula'),
         content: const Text(
-          'Se eliminarán los datos y las firmas '
-              'guardadas de este partido. '
+          'Se eliminará el documento con sus firmas del historial. '
+              'Los puntos y estadísticas oficiales permanecerán. '
               'Esta acción no se puede deshacer.',
         ),
         actions: [
@@ -146,29 +121,7 @@ class _HistorialCedulasState
     if (!mounted || confirmar != true) return;
 
     try {
-      final prefs = SharedPreferencesAsync();
-
-      final texto = await prefs.getString(
-        'cedulas_borrador',
-      );
-
-      final lista = (jsonDecode(texto ?? '[]') as List)
-          .map(
-            (item) => Map<String, dynamic>.from(
-          item as Map,
-        ),
-      )
-          .where(
-            (item) =>
-        item['id'].toString() !=
-            cedula['id'].toString(),
-      )
-          .toList();
-
-      await prefs.setString(
-        'cedulas_borrador',
-        jsonEncode(lista),
-      );
+      await AlmacenTablas.eliminarCedula(cedula['id'].toString());
 
       if (!mounted) return;
 
@@ -373,7 +326,7 @@ class _HistorialCedulasState
                   Text(
                     error ??
                         'No hay cédulas guardadas.\n'
-                            'Crea una nueva cédula y guarda el borrador.',
+                            'Crea una nueva cédula y guarda el resultado definitivo.',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: ArenaColores.negro,
